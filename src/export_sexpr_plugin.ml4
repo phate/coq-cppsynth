@@ -2,64 +2,211 @@ DECLARE PLUGIN "export_sexpr_plugin"
 
 open Constr
 open Declarations
+open Environ
 open Names
 open Stdarg
+
+module CRD = Context.Rel.Declaration
+
+let rec range (min : int) (max : int) =
+  if min < max then
+    min :: range (min + 1) max
+  else
+    []
 
 let build_sexpr (node : string) (args : string list) : string =
   "(" ^ (String.concat " " (node :: args)) ^ ")"
 
-let build_term_sexpr (term : types) : string =
+let build_name_sexpr (name : Name.t) : string =
+  match name with
+    | Name id -> build_sexpr "Name" [Id.to_string id]
+    | Anonymous -> "(Anonymous)"
+
+let build_rel_sexpr (env : env) (index : int) : string =
+  try
+    let name = (
+      match lookup_rel index env with
+        | CRD.LocalAssum (name, _) -> name
+        | CRD.LocalDef (name, _ ,_) -> name
+    ) in
+    match name with
+      | Name id ->
+        build_sexpr "Local" [Id.to_string id]
+      | Anonymous ->
+        raise Not_found
+  with Not_found ->
+    build_sexpr "Rel" [string_of_int index]
+
+let bindings_for_fix (names : Name.t array) (typs : constr array) =
+  Array.to_list
+    (CArray.map2_i
+      (fun i name typ -> CRD.(LocalAssum (name, Vars.lift i typ)))
+      names typs)
+
+let rec build_term_sexpr (env : env) (term : types) : string =
   match kind term with
-    | Rel i -> "Rel"
-    | Var v -> "Var"
-    | Meta mv -> "Meta"
-    | Evar (k, cs) -> "Evar"
-    | Sort s -> "Sort"
-    | Cast (c, k, t) -> "Cast"
-    | Prod (n, t, b) -> "Prod"
-    | Lambda (n, t, b) -> "Lambda"
-    | LetIn (n, trm, typ, b) -> "LetIn"
-    | App (f, xs) -> "App"
-    | Const (c, u) -> "Const"
-    | Construct ((i, c_index), u) -> "Construct"
-    | Ind ((i, i_index), u) -> "Ind"
-    | Case (ci, ct, m, bs) -> "Case"
-    | Fix ((is, i), (ns, ts, ds)) -> "Fix"
-    | CoFix (i, (ns, ts, ds)) -> "CoFix"
-    | Proj (p, c) -> "Proj"
+    | Rel index ->
+      build_rel_sexpr env index
+    | Var id ->
+      build_sexpr "Var" [Id.to_string id]
+    | Meta index ->
+      build_sexpr "Meta" [string_of_int index] (* this is ?x *)
+    | Evar (index, constructors) ->
+      build_sexpr "Evar" ((string_of_int (Evar.repr index)) :: List.map (build_term_sexpr env) (Array.to_list constructors))
+    | Sort sort ->
+      let kind = (match sort with
+        | Sorts.Prop -> "Prop"
+        | Sorts.Set -> "Set"
+        | Sorts.Type u -> "Type" (* FIXME: universe u *)
+      ) in
+      build_sexpr "Sort" [kind]
+    | Cast (term, kind, type_term) ->
+      let kind' = (match kind with
+        | VMcast -> "VMcast"
+        | DEFAULTcast -> "DEFAULTcast"
+        | REVERTcast -> "REVERTcast"
+        | NATIVEcast -> "NATIVEcast") in
+      let term' = build_term_sexpr env term in
+      let type_term' = build_term_sexpr env type_term in
+      build_sexpr "Cast" [ term' ; kind' ; type_term' ]
+    | Prod (arg_name, arg_type, body) ->
+      let arg_name' = build_name_sexpr arg_name in
+      let arg_type' = build_term_sexpr env arg_type in
+      let body' = build_term_sexpr (push_rel CRD.(LocalAssum(arg_name, arg_type)) env) body in
+      build_sexpr "Prod" [ arg_name' ; arg_type' ; body' ]
+    | Lambda (arg_name, arg_type, body) ->
+      let arg_name' = build_name_sexpr arg_name in
+      let arg_type' = build_term_sexpr env arg_type in
+      let body' = build_term_sexpr (push_rel CRD.(LocalAssum(arg_name, arg_type)) env) body in
+      build_sexpr "Lambda" [ arg_name' ; arg_type' ; body' ]
+    | LetIn (name, term, term_type, body) ->
+      let term' = build_term_sexpr env term in
+      let term_type' = build_term_sexpr env term_type in
+      let body' = build_term_sexpr (push_rel CRD.(LocalDef(name, body, term_type)) env) body in
+      build_sexpr "LetIn" [ build_name_sexpr name ; term' ; term_type' ; body' ]
+    | App (fn, args) ->
+      let fn' = build_term_sexpr env fn in
+      let args' = List.map (build_term_sexpr env) (Array.to_list args) in
+      build_sexpr "App" (fn' :: args')
+    | Const (c, u) ->
+      let kn = Constant.canonical c in
+      build_sexpr "Global" [ KerName.to_string kn ]
+    | Construct (((ind, i_index), c_index), u) ->
+      let mp = MutInd.modpath ind in
+      let mib = lookup_mind ind env in
+      let bodies = mib.mind_packets in
+      let body = Array.get bodies i_index in
+      let name = Array.get body.mind_consnames (c_index - 1) in
+      let name' = MutInd.make2 mp (Label.of_id name) in
+      let kn = MutInd.canonical name' in
+      build_sexpr "Global" [ KerName.to_string kn ]
+    | Ind ((ind, i_index), u) ->
+      let mp = MutInd.modpath ind in
+      let mib = lookup_mind ind env in
+      let bodies = mib.mind_packets in
+      let body = Array.get bodies i_index in
+      let name = body.mind_typename in
+      let name' = MutInd.make2 mp (Label.of_id name) in
+      let kn = MutInd.canonical name' in
+      build_sexpr "Global" [ KerName.to_string kn ]
+    | Case (case_info, case_term, match_type, branches) ->
+      let (ind, i_index) = case_info.ci_ind in
+      let mp = MutInd.modpath ind in
+      let mib = lookup_mind ind env in
+      let bodies = mib.mind_packets in
+      let body = Array.get bodies i_index in
+      let consnames = body.mind_consnames in
+
+      let cons_branches = List.combine (Array.to_list consnames) (Array.to_list branches) in
+
+      let case_term' = (build_term_sexpr env) case_term in
+      let match_type' = (build_term_sexpr env) match_type in
+      let branches' = List.map
+        (fun (consname, branch) ->
+          let name = MutInd.make2 mp (Label.of_id consname) in
+          let kn = KerName.to_string (MutInd.canonical (name)) in
+          build_sexpr kn [ build_term_sexpr env branch ] ) cons_branches in
+      let num_args = string_of_int case_info.ci_npar in
+      build_sexpr "Case" [ num_args ; case_term' ; build_sexpr "Match" [match_type'] ; build_sexpr "Branches" branches' ]
+    | Fix ((recurse_indices, index), (names, types, defs)) ->
+      let env' = push_rel_context (bindings_for_fix names types) env in
+      let fns = List.map
+        (fun i->
+          let name = build_name_sexpr (Array.get names i) in
+          let sig_type = build_term_sexpr env (Array.get types i) in
+          let def = build_term_sexpr env' (Array.get defs i) in
+          build_sexpr "Function" [ name ; sig_type ; def ])
+        (range 0 (Array.length names)) in
+      build_sexpr "Fix" ( string_of_int index :: fns )
+    | CoFix (index, (names, types, defs)) ->
+      let env' = push_rel_context (bindings_for_fix names types) env in
+      let fns = List.map
+        (fun i->
+          let name = build_name_sexpr (Array.get names i) in
+          let sig_type = build_term_sexpr env (Array.get types i) in
+          let def = build_term_sexpr env' (Array.get defs i) in
+          build_sexpr "Function" [ name ; sig_type ; def ])
+        (range 0 (Array.length names)) in
+      build_sexpr "CoFix" ( string_of_int index :: fns )
+    | Proj (p, c) ->
+      let p' = KerName.to_string (Constant.canonical (Projection.constant p)) in
+      let c' = build_term_sexpr env c in
+      build_sexpr "Proj" [p' ; c']
+
+let build_top_term_sexpr (term : types) : string =
+  let env = Global.env() in
+  build_term_sexpr env term
 
 let build_constant_sexpr (label : Label.t) (cb : Declarations.constant_body) : string =
   let name = Label.to_string label in
-  let u = (match cb.const_universes with
-    | Monomorphic_const _ -> Univ.Instance.empty
-    | Polymorphic_const ctx -> Univ.make_abstract_instance ctx
-  ) in
   let type_term = cb.const_type in
   match cb.const_body with
     Undef _ ->
-      build_sexpr "Axiom" [ name ; build_term_sexpr type_term ]
+      build_sexpr "Axiom" [ name ; build_top_term_sexpr type_term ]
     | Def cs ->
       let term = (Mod_subst.force_constr cs) in
-      build_sexpr "Definition" [ name ; build_term_sexpr type_term ; build_term_sexpr term  ]
+      build_sexpr "Definition" [ name ; build_top_term_sexpr type_term ; build_top_term_sexpr term  ]
     | OpaqueDef o ->
-      build_sexpr "Theorem" [ name ; build_term_sexpr type_term ]
+      build_sexpr "Theorem" [ name ; build_top_term_sexpr type_term ]
 
-let build_inductive_sexpr (oib : one_inductive_body) =
+let get_type_of_inductive (mib : mutual_inductive_body) (oib : one_inductive_body) =
+  let univs = Declareops.inductive_polymorphic_context mib in
+  let inst = Univ.make_abstract_instance univs in
+  let env = Environ.push_context (Univ.AUContext.repr univs) (Global.env()) in
+  Inductive.type_of_inductive env ((mib, oib), inst)
+
+let bindings_for_inductive (mib : mutual_inductive_body) =
+  Array.to_list
+    (CArray.mapi
+      (fun i oib ->
+        CRD.(LocalAssum (Names.Name.mk_name oib.mind_typename, Vars.lift i (get_type_of_inductive mib oib))))
+      mib.mind_packets)
+
+let build_inductive_sexpr (env : env) (mib : mutual_inductive_body) (oib : one_inductive_body) =
+  let ind_type = get_type_of_inductive mib oib in
   let arity = oib.mind_arity_ctxt in
-  let constr_names = Array.to_list oib.mind_consnames in
-  let constr_types = Array.to_list oib.mind_user_lc in
-  let constructors = List.map (fun n -> build_sexpr "Constructor" [Id.to_string n (* ; type *) ]) constr_names in
+  let constr_names = oib.mind_consnames in
+  let constr_types = oib.mind_user_lc in
+  let constructors =
+    List.map
+      (fun i ->
+        let name = Id.to_string (Array.get constr_names i) in
+        let type_sig = build_term_sexpr env (Array.get constr_types i) in
+        build_sexpr "Constructor" [ name ; type_sig ])
+      (range 0 (Array.length constr_names)) in
   let name = Id.to_string oib.mind_typename in
-  build_sexpr "OneInductive" (name (* args, from arity *) :: constructors)
+  build_sexpr "OneInductive" (name :: (build_term_sexpr env ind_type) :: constructors)
 
-let build_minductive_sexpr (mib : Declarations.mutual_inductive_body) : string =
+let build_minductive_sexpr (mib : mutual_inductive_body) : string =
+  let env = Global.env() in
+  let env = push_rel_context (List.rev (bindings_for_inductive mib)) env in
   let kind =
     match mib.mind_finite with
       Finite -> "Inductive"
     | CoFinite -> "CoInductive"
     | BiFinite -> "Record"
   in
-    build_sexpr kind (List.map build_inductive_sexpr (Array.to_list mib.mind_packets))
+    build_sexpr kind (List.map (build_inductive_sexpr env mib) (Array.to_list mib.mind_packets))
 
 let rec build_structure_field_body_sexpr (label, sfb) : string =
   match sfb with
@@ -110,9 +257,6 @@ let build_module_sexpr (mp : ModPath.t) : string =
   let mb = Global.lookup_module mp in
   let body = build_module_body_sexpr mb in
   build_sexpr "Module" [ ModPath.to_string mp ; body ]
-
-
-
 
 let handle_export (qid : Libnames.qualid) : unit =
   try
