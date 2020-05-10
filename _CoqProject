@@ -1,5 +1,12 @@
 -I src
 -R theories ExportSExpr
+-R CPPSynth CPPSynth
 
 src/export_sexpr_plugin.ml4
 theories/ExportSExpr.v
+CPPSynth/Exception.v
+CPPSynth/MaybeMonad.v
+CPPSynth/Monad.v
+CPPSynth/SExpression.v
+CPPSynth/StateMonad.v
+CPPSynth/StringUtil.v
