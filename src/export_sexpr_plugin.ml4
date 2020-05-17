@@ -31,7 +31,7 @@ let build_rel_sexpr (env : env) (index : int) : string =
     ) in
     match name with
       | Name id ->
-        build_sexpr "Local" [Id.to_string id]
+        build_sexpr "Local" [Id.to_string id ; string_of_int index]
       | Anonymous ->
         raise Not_found
   with Not_found ->
@@ -116,16 +116,18 @@ let rec build_term_sexpr (env : env) (term : types) : string =
       let bodies = mib.mind_packets in
       let body = Array.get bodies i_index in
       let consnames = body.mind_consnames in
+      (* XXX: get per-constructer number of arguments from type signaruter? *)
+      let consnargs = body.mind_consnrealdecls in
 
-      let cons_branches = List.combine (Array.to_list consnames) (Array.to_list branches) in
+      let cons_branches = List.combine (List.combine (Array.to_list consnames) (Array.to_list branches)) (Array.to_list consnargs) in
 
       let case_term' = (build_term_sexpr env) case_term in
       let match_type' = (build_term_sexpr env) match_type in
       let branches' = List.map
-        (fun (consname, branch) ->
+        (fun ((consname, branch), consnargs) ->
           let name = MutInd.make2 mp (Label.of_id consname) in
           let kn = KerName.to_string (MutInd.canonical (name)) in
-          build_sexpr kn [ build_term_sexpr env branch ] ) cons_branches in
+          build_sexpr kn [ string_of_int consnargs ; build_term_sexpr env branch ] ) cons_branches in
       let num_args = string_of_int case_info.ci_npar in
       build_sexpr "Case" [ num_args ; case_term' ; build_sexpr "Match" [match_type'] ; build_sexpr "Branches" branches' ]
     | Fix ((recurse_indices, index), (names, types, defs)) ->
