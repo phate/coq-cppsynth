@@ -10,3 +10,4 @@ CPPSynth/Monad.v
 CPPSynth/SExpression.v
 CPPSynth/StateMonad.v
 CPPSynth/StringUtil.v
+CPPSynth/export.v
