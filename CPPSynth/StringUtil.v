@@ -45,6 +45,10 @@ Module char.
   Qed.
 End char.
 
+Definition string_of_nat (n : nat) : string :=
+  let d := Nat.to_uint n in
+  NilZero.string_of_uint d.
+
 Theorem string_app_ex :
     forall (c : char.t) (s : string),
     exists c' s', String c s = (s' ++ (char.to_string c'))%string.
