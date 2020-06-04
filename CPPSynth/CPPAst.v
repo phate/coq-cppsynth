@@ -85,7 +85,21 @@ Module token_keyword.
     | kw_int : t
     | kw_private : t
     | kw_protected : t
-    | kw_public : t.
+    | kw_public : t
+    | kw_typename : t
+    | kw_register : t
+    | kw_static : t
+    | kw_thread_local : t
+    | kw_extern : t
+    | kw_mutable : t
+    | kw_inline : t
+    | kw_virtual : t
+    | kw_explicit : t
+    | kw_friend : t
+    | kw_constexpr : t
+    | kw_override : t
+    | kw_noexcept : t
+  .
 
   Definition to_string (this : t) : String.string :=
     match this with
@@ -107,7 +121,21 @@ Module token_keyword.
       | kw_private => "private"
       | kw_protected => "protected"
       | kw_public => "public"
+      | kw_typename => "typename"
+      | kw_register => "register"
+      | kw_static => "static"
+      | kw_thread_local => "thread_local"
+      | kw_extern => "extern"
+      | kw_mutable => "mutable"
+      | kw_inline => "inline"
+      | kw_virtual => "virtual"
+      | kw_explicit => "explicit"
+      | kw_friend => "friend"
+      | kw_constexpr => "constexpr"
+      | kw_override => "override"
+      | kw_noexcept => "noexcept"
     end.
+
 End token_keyword.
 
 Module token.
@@ -207,6 +235,62 @@ Module visibility_spec.
     end.
 End visibility_spec.
 
+Module decl_specifier.
+  Inductive t : Set :=
+    | ds_register : t
+    | ds_static : t
+    | ds_thread_local : t
+    | ds_extern : t
+    | ds_mutable : t
+    | ds_inline : t
+    | ds_virtual : t
+    | ds_explicit : t
+    | ds_friend : t
+    | ds_constexpr : t
+  .
+
+  Definition to_tokens (this : t) : list token.t :=
+    match this with
+      | ds_register => (token.keyword token_keyword.kw_register) :: nil
+      | ds_static => (token.keyword token_keyword.kw_static) :: nil
+      | ds_thread_local => (token.keyword token_keyword.kw_thread_local) :: nil
+      | ds_extern => (token.keyword token_keyword.kw_extern) :: nil
+      | ds_mutable => (token.keyword token_keyword.kw_mutable) :: nil
+      | ds_inline => (token.keyword token_keyword.kw_inline) :: nil
+      | ds_virtual => (token.keyword token_keyword.kw_virtual) :: nil
+      | ds_explicit => (token.keyword token_keyword.kw_explicit) :: nil
+      | ds_friend => (token.keyword token_keyword.kw_friend) :: nil
+      | ds_constexpr => (token.keyword token_keyword.kw_constexpr) :: nil
+    end.
+End decl_specifier.
+
+Module decl_specifiers.
+  Definition t := list decl_specifier.t.
+
+  Definition to_tokens (this : t) : list token.t :=
+    let result := nil in
+    fold_left (fun result ds => result ++ (decl_specifier.to_tokens ds)) this result.
+End decl_specifiers.
+
+Module attr_specifier.
+  Inductive t : Set :=
+    | as_override : t
+    | as_noexcept : t.
+  Definition to_tokens (this : t) : list token.t :=
+    match this with
+      | as_override => (token.keyword token_keyword.kw_override) :: nil
+      | as_noexcept => (token.keyword token_keyword.kw_noexcept) :: nil
+    end.
+End attr_specifier.
+
+Module attr_specifiers.
+  Definition t := list attr_specifier.t.
+
+  Definition to_tokens (this : t) : list token.t :=
+    let result := nil in
+    fold_left (fun result ds => result ++ (attr_specifier.to_tokens ds)) this result.
+End attr_specifiers.
+
 (* declarators, namespace / class level *)
 Inductive decls_t : Set :=
   | decls_nil : decls_t
@@ -215,11 +299,15 @@ Inductive decls_t : Set :=
 (* note: much more restrictive than what C++ allows, one declarator per block etc. *)
 with decl_t : Set :=
   | decl_simple : (* covers function and variable declarations *)
-    forall (type : typeexpr_t) (id :idexpr_t), decl_t
+    forall (ds : decl_specifiers.t) (type : typeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t), decl_t
   | decl_initdef : (* covers definition via assignment initialization *)
-    forall (type : typeexpr_t) (id : idexpr_t) (value : expr_t), decl_t
+    forall (ds : decl_specifiers.t) (type : typeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (value : expr_t), decl_t
   | decl_fundef : (* strict function definitions *)
-    forall (type : funtypeexpr_t) (id : idexpr_t) (body : stmts_t), decl_t
+    forall (ds : decl_specifiers.t) (type : funtypeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (body : stmts_t), decl_t
+  | decl_consdesdecl : (* constructor and destructor declarations *)
+    forall (ds : decl_specifiers.t) (id : idexpr_t) (args : funargs_t) (attrs : attr_specifiers.t), decl_t
+  | decl_consdesdef : (* constructor and destructor definitions *)
+    forall (ds : decl_specifiers.t) (id : idexpr_t) (args : funargs_t) (attrs : attr_specifiers.t) (body : stmts_t), decl_t
   | decl_class_fwd :
     forall (id : idexpr_t), decl_t
   | decl_class :
@@ -238,6 +326,7 @@ with clsdecl_t : Set :=
 (* expression for an id -- needs to include namespace and template-ids, then *)
 with idexpr_t : Set :=
   | idexpr_id : string -> idexpr_t
+  | idexpr_destructor : string -> idexpr_t
 
 (* template formal arguments *)
 with tplformargs_t : Set :=
@@ -269,9 +358,9 @@ with funargs_t : Set :=
   | funargs_cons : funarg_t -> funargs_t -> funargs_t
 
 with funarg_t : Set :=
-  | funarg_named : 
+  | funarg_named :
     forall (type : typeexpr_t) (name : String.string), funarg_t
-  | funarg_anon : 
+  | funarg_anon :
     forall (type : typeexpr_t), funarg_t
 
 (* Statements (function-level) *)
@@ -337,6 +426,9 @@ Definition simple_id_serialize (id : string) : list token.t :=
 Definition idexpr_serialize (this : idexpr_t) : list token.t :=
   match this with
     | idexpr_id id => simple_id_serialize id
+    | idexpr_destructor id =>
+      token.symbol token_symbol.tilda ::
+      simple_id_serialize id
   end.
 
 
@@ -395,7 +487,6 @@ Module expr_prec.
 End expr_prec.
 
 (* XXX: placeholders *)
-Fixpoint tplformargs_serialize (this : tplformargs_t) : list token.t := nil.
 Fixpoint binders_serialize (this : binders_t) : list token.t := nil.
 
 Fixpoint decls_serialize (this : decls_t) : list token.t :=
@@ -407,16 +498,39 @@ Fixpoint decls_serialize (this : decls_t) : list token.t :=
 
 with decl_serialize (this : decl_t) : list token.t :=
   match this with
-    | decl_simple type id =>
+    | decl_simple ds type id attrs =>
+      decl_specifiers.to_tokens ds ++
       typeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
+      attr_specifiers.to_tokens attrs ++
       ((token.symbol token_symbol.semicolon) :: nil)
-    | decl_initdef type id value =>
+    | decl_initdef ds type id attrs value =>
+      decl_specifiers.to_tokens ds ++
       typeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
+      attr_specifiers.to_tokens attrs ++
       ((token.symbol token_symbol.assign) :: nil) ++
       expr_serialize expr_prec.none value ++
       ((token.symbol token_symbol.semicolon) :: nil)
-    | decl_fundef type id body =>
+    | decl_fundef ds type id attrs body =>
+      decl_specifiers.to_tokens ds ++
       funtypeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
+      attr_specifiers.to_tokens attrs ++
+      ((token.symbol token_symbol.open_brace) :: nil) ++
+      stmts_serialize body ++
+      ((token.symbol token_symbol.close_brace) :: nil)
+    | decl_consdesdecl ds id args attrs =>
+      decl_specifiers.to_tokens ds ++
+      idexpr_serialize id ++
+      attr_specifiers.to_tokens attrs ++
+      ((token.symbol token_symbol.open_paren) :: nil) ++
+      funargs_serialize true args ++
+      ((token.symbol token_symbol.close_paren) :: nil)
+    | decl_consdesdef ds id args attrs body =>
+      decl_specifiers.to_tokens ds ++
+      idexpr_serialize id ++
+      ((token.symbol token_symbol.open_paren) :: nil) ++
+      funargs_serialize true args ++
+      ((token.symbol token_symbol.close_paren) :: nil) ++
+      attr_specifiers.to_tokens attrs ++
       ((token.symbol token_symbol.open_brace) :: nil) ++
       stmts_serialize body ++
       ((token.symbol token_symbol.close_brace) :: nil)
@@ -431,12 +545,12 @@ with decl_serialize (this : decl_t) : list token.t :=
       clsdecls_serialize body ++
       ((token.symbol token_symbol.close_brace) :: nil) ++
       ((token.symbol token_symbol.semicolon) :: nil)
-    | decl_templated args decl=>
+    | decl_templated args decl =>
       ((token.keyword token_keyword.kw_template) :: nil) ++
       ((token.symbol token_symbol.lt) :: nil) ++
-      tplformargs_serialize args ++
+      tplformargs_serialize true args ++
       ((token.symbol token_symbol.gt) :: nil) ++
-      decl_serialize decl 
+      decl_serialize decl
   end
 
 with clsdecls_serialize (this : clsdecls_t) : list token.t :=
@@ -447,6 +561,22 @@ with clsdecls_serialize (this : clsdecls_t) : list token.t :=
       clsdecls_serialize clsdecls
   end
 
+with tplformargs_serialize (first : bool) (this : tplformargs_t) : list token.t :=
+  match this with
+    | tplformargs_nil => nil
+    | tplformargs_cons arg args =>
+      (if first then nil else ((token.symbol token_symbol.comma) :: nil)) ++
+      tplformarg_serialize arg ++ tplformargs_serialize false args
+  end
+
+with tplformarg_serialize (this : tplformarg_t) : list token.t :=
+  match this with
+    | tplformarg_typename name => token.keyword token_keyword.kw_typename :: token.identifier name :: nil
+    | tplformarg_value type name =>
+      let inner := token.identifier name :: nil in
+      typeexpr_serialize inner typeexpr_prec.none false type
+  end
+
 with clsdecl_serialize (this : clsdecl_t) : list token.t :=
   match this with
     | clsdecl_group visibility decls =>
@@ -455,7 +585,7 @@ with clsdecl_serialize (this : clsdecl_t) : list token.t :=
       decls_serialize decls
   end
 
-with typeexpr_serialize 
+with typeexpr_serialize
     (inner : list token.t)  (inner_prec : typeexpr_prec.t)
     (skip_head : bool) (this : typeexpr_t) : list token.t :=
   match this with
@@ -498,7 +628,7 @@ with typeexpr_serialize
     | typeexpr_array type expr =>
       let inner := typeexpr_prec.maybe_wrap inner_prec typeexpr_prec.right_assoc inner in
       let inner :=
-        inner ++ 
+        inner ++
         ((token.symbol token_symbol.open_bracket) :: nil) ++
         expr_serialize expr_prec.none expr ++
         ((token.symbol token_symbol.close_bracket) :: nil) in
@@ -506,7 +636,7 @@ with typeexpr_serialize
     | typeexpr_unspec_array type =>
       let inner := typeexpr_prec.maybe_wrap inner_prec typeexpr_prec.right_assoc inner in
       let inner :=
-        inner ++ 
+        inner ++
         ((token.symbol token_symbol.open_bracket) :: nil) ++
         ((token.symbol token_symbol.close_bracket) :: nil) in
       typeexpr_serialize inner typeexpr_prec.right_assoc skip_head type
@@ -514,14 +644,14 @@ with typeexpr_serialize
       funtypeexpr_serialize inner inner_prec skip_head type
   end
 
-with funtypeexpr_serialize 
+with funtypeexpr_serialize
     (inner : list token.t)  (inner_prec : typeexpr_prec.t)
     (skip_head : bool) (this : funtypeexpr_t) : list token.t :=
   match this with
     | funtypeexpr ret_type args =>
       let inner := typeexpr_prec.maybe_wrap inner_prec typeexpr_prec.function inner in
       let inner :=
-        inner ++ 
+        inner ++
         ((token.symbol token_symbol.open_paren) :: nil) ++
         funargs_serialize true args ++
         ((token.symbol token_symbol.close_paren) :: nil) in
@@ -598,7 +728,7 @@ with expr_serialize (outer_prec : expr_prec.t) (this : expr_t) : list token.t :=
     | expr_binop op arg1 arg2 =>
       let e1 := expr_serialize expr_prec.binop arg1 in
       let e2 := expr_serialize expr_prec.binop arg2 in
-      e1 ++ 
+      e1 ++
       (token.symbol (binop.to_symbol op)) :: nil ++
       e2
     | expr_ternop cond then_expr else_expr =>
@@ -665,21 +795,27 @@ Fixpoint make_callargs (args : list expr_t) : callargs_t :=
 
 Example ex_decl_array_of_pointers :=
     decl_simple
+      nil
       (typeexpr_array (typeexpr_pointer (typeexpr_primitive primtype.int)) (expr_literal (literal.decimal 32)))
-      (idexpr_id "foo").
+      (idexpr_id "foo")
+      nil.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_array_of_pointers)).
 Example ex_decl_pointer_of_array :=
     decl_simple
+      nil
       (typeexpr_pointer (typeexpr_array (typeexpr_primitive primtype.int) (expr_literal (literal.decimal 32))))
-      (idexpr_id "foo").
+      (idexpr_id "foo")
+      nil.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_pointer_of_array)).
 Example ex_decl_fun :=
     decl_simple
+      nil
       (typeexpr_function
-        (funtypeexpr 
-          (typeexpr_pointer (typeexpr_primitive primtype.int))  
+        (funtypeexpr
+          (typeexpr_pointer (typeexpr_primitive primtype.int))
           (make_funargs (funarg_named (typeexpr_primitive primtype.int) "a" :: funarg_named (typeexpr_primitive primtype.char) "b" :: nil))))
-      (idexpr_id "foo").
+      (idexpr_id "foo")
+      nil.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_fun)).
 Example ex_decl_class :=
     decl_class
@@ -687,30 +823,39 @@ Example ex_decl_class :=
       (make_clsdecls (
         (clsdecl_group
           visibility_spec.vis_public
-          (make_decls 
+          (make_decls
             (ex_decl_fun ::
             nil)) ::
         nil))).
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_class)).
+Example ex_decl_tpl_class :=
+    decl_templated
+      (tplformargs_cons (tplformarg_typename "T") tplformargs_nil)
+      ex_decl_class.
+Eval lazy in (serialize_tokens (decl_serialize ex_decl_tpl_class)).
 Example ex_decl_funptr :=
     decl_simple
+      nil
       (typeexpr_pointer (
         (typeexpr_function
-          (funtypeexpr 
-            (typeexpr_pointer (typeexpr_primitive primtype.int))  
+          (funtypeexpr
+            (typeexpr_pointer (typeexpr_primitive primtype.int))
             (funargs_nil)))))
-      (idexpr_id "foo").
+      (idexpr_id "foo")
+      nil.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_funptr)).
 
 Example ex_decl_fundef :=
   decl_fundef
+    nil
     (funtypeexpr
       (typeexpr_primitive primtype.int)
       (make_funargs (
-        funarg_named (typeexpr_primitive primtype.int) "a" :: 
-        funarg_named (typeexpr_primitive primtype.char) "b" :: 
+        funarg_named (typeexpr_primitive primtype.int) "a" ::
+        funarg_named (typeexpr_primitive primtype.char) "b" ::
         nil)))
     (idexpr_id "foo")
+    nil
     (make_stmts (
       (stmt_return (expr_literal (literal.decimal 32))) ::
       nil)
@@ -719,18 +864,20 @@ Eval lazy in (serialize_tokens (decl_serialize ex_decl_fundef)).
 
 Example ex_hello_world_main :=
   decl_fundef
+    nil
     (funtypeexpr
       (typeexpr_primitive primtype.int)
       (make_funargs (
-        funarg_named (typeexpr_primitive primtype.int) "args" :: 
-        funarg_named (typeexpr_pointer (typeexpr_pointer (typeexpr_primitive primtype.char))) "argv" :: 
+        funarg_named (typeexpr_primitive primtype.int) "args" ::
+        funarg_named (typeexpr_pointer (typeexpr_pointer (typeexpr_primitive primtype.char))) "argv" ::
         nil)))
     (idexpr_id "main")
+    nil
     (make_stmts (
       (stmt_expr
         (expr_call
           (expr_id (idexpr_id "printf"))
-          (make_callargs ( 
+          (make_callargs (
             expr_literal (literal.str "Hello world!") ::
             nil)))) ::
       (stmt_return (expr_literal (literal.decimal 0))) ::

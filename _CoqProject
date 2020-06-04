@@ -4,6 +4,7 @@
 
 src/export_sexpr_plugin.ml4
 theories/ExportSExpr.v
+CPPSynth/CPPAst.v
 CPPSynth/Exception.v
 CPPSynth/MaybeMonad.v
 CPPSynth/Monad.v
