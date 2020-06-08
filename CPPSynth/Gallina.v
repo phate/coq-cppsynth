@@ -200,6 +200,9 @@ Module inductive_constructor.
         | sexpr.list_nil => Okay result
       end) l result.
 
+  Definition type (this : t) : expr.t := let (name, type) := this in type.
+  Definition name (this : t) : string := let (name, type) := this in name.
+
 End inductive_constructor.
 
 Module one_inductive.

@@ -37,6 +37,8 @@ Module token_symbol.
     | semicolon : t
     | scope : t
     | question : t
+    | arrow : t
+    | dot : t
   .
 
   Definition to_string (this : t) : String.string :=
@@ -63,6 +65,8 @@ Module token_symbol.
       | semicolon => ";"
       | scope => "::"
       | question => "?"
+      | arrow => "->"
+      | dot => "."
     end.
 End token_symbol.
 
@@ -99,6 +103,9 @@ Module token_keyword.
     | kw_constexpr : t
     | kw_override : t
     | kw_noexcept : t
+    | kw_decltype : t
+    | kw_dynamic_cast : t
+    | kw_final : t
   .
 
   Definition to_string (this : t) : String.string :=
@@ -134,12 +141,15 @@ Module token_keyword.
       | kw_constexpr => "constexpr"
       | kw_override => "override"
       | kw_noexcept => "noexcept"
+      | kw_decltype => "decltype"
+      | kw_dynamic_cast => "dynamic_cast"
+      | kw_final => "final"
     end.
 
 End token_keyword.
 
 Module token.
-  Inductive t :=
+  Inductive t : Set :=
     | identifier :
       forall (s : string), t
     | keyword : forall (kw : token_keyword.t), t
@@ -165,7 +175,7 @@ Definition serialize_tokens (tokens : list token.t) : string :=
   String.concat " " (List.map token.to_string tokens).
 
 Module unop.
-  Inductive t :=
+  Inductive t : Set :=
     | negate
     | bitnot
     | logicnot
@@ -183,7 +193,7 @@ Module unop.
 End unop.
 
 Module binop.
-  Inductive t :=
+  Inductive t : Set :=
     | assign
     | plus
     | minus
@@ -200,7 +210,7 @@ Module binop.
 End binop.
 
 Module primtype.
-  Inductive t :=
+  Inductive t : Set :=
     | void
     | auto
     | char
@@ -222,7 +232,7 @@ Module primtype.
 End primtype.
 
 Module visibility_spec.
-  Inductive t :=
+  Inductive t : Set :=
     | vis_private : t
     | vis_protected : t
     | vis_public : t.
@@ -311,7 +321,7 @@ with decl_t : Set :=
   | decl_class_fwd :
     forall (id : idexpr_t), decl_t
   | decl_class :
-    forall (id : idexpr_t) (body : clsdecls_t), decl_t
+    forall (id : idexpr_t) (is_final : bool) (inherits : clsinherits_t) (body : clsdecls_t), decl_t
   | decl_templated : (* template any of the above -- should not template templates *)
     forall (args : tplformargs_t) (decl : decl_t), decl_t
 
@@ -323,10 +333,29 @@ with clsdecl_t : Set :=
   | clsdecl_group :
     forall (visibility : visibility_spec.t) (decls : decls_t), clsdecl_t
 
+with clsinherits_t : Set :=
+  | clsinherits_nil : clsinherits_t
+  | clsinherits_cons : clsinherit_t -> clsinherits_t -> clsinherits_t
+
+with clsinherit_t : Set :=
+  | clsinherit : 
+    forall (is_virtual : bool) (visibility : visibility_spec.t) (base : idexpr_t),
+    clsinherit_t
+
 (* expression for an id -- needs to include namespace and template-ids, then *)
 with idexpr_t : Set :=
-  | idexpr_id : string -> idexpr_t
-  | idexpr_destructor : string -> idexpr_t
+  | idexpr_id : scope_t -> string -> idexpr_t
+  | idexpr_destructor : scope_t -> string -> idexpr_t
+  | idexpr_template : scope_t -> templateid_t -> idexpr_t
+
+with scope_t : Set :=
+  | scope_none : scope_t
+  | scope_id : string -> scope_t -> scope_t
+  | scope_template : templateid_t -> scope_t -> scope_t
+
+with templateid_t : Set :=
+  | templateid :
+    forall (name : string) (args : tplargs_t), templateid_t
 
 (* template formal arguments *)
 with tplformargs_t : Set :=
@@ -336,6 +365,18 @@ with tplformargs_t : Set :=
 with tplformarg_t : Set :=
   | tplformarg_typename : string -> tplformarg_t
   | tplformarg_value : typeexpr_t -> string -> tplformarg_t
+
+(* template actual arguments *)
+
+with tplargs_t : Set :=
+  | tplargs_nil : tplargs_t
+  | tplargs_cons : tplarg_t -> tplargs_t -> tplargs_t
+
+with tplarg_t : Set :=
+  | tplarg_type :
+    forall (type : typeexpr_t), tplarg_t
+  | tplarg_expr :
+    forall (expr : expr_t), tplarg_t
 
 (* terms representing types *)
 with typeexpr_t : Set :=
@@ -348,10 +389,11 @@ with typeexpr_t : Set :=
   | typeexpr_array : typeexpr_t -> expr_t -> typeexpr_t
   | typeexpr_unspec_array : typeexpr_t -> typeexpr_t
   | typeexpr_function : funtypeexpr_t -> typeexpr_t
+  | typeexpr_decltype : expr_t -> typeexpr_t
 
 with funtypeexpr_t : Set :=
   | funtypeexpr :
-    forall (ret_type : typeexpr_t) (args : funargs_t), funtypeexpr_t
+    forall (ret_type : typeexpr_t) (args : funargs_t) (postfix : bool), funtypeexpr_t
 
 with funargs_t : Set :=
   | funargs_nil : funargs_t
@@ -377,11 +419,18 @@ with stmt_t : Set :=
   | stmt_block :
     forall (body : stmts_t), stmt_t
   | stmt_if :
-    forall (cond : expr_t) (then_body : stmt_t), stmt_t
+    forall (cond : condition_t) (then_body : stmt_t), stmt_t
   | stmt_ifelse :
-    forall (cond : expr_t) (then_body : stmt_t) (else_body : stmt_t), stmt_t
+    forall (cond : condition_t) (then_body : stmt_t) (else_body : stmt_t), stmt_t
   | stmt_return :
     forall (expr : expr_t), stmt_t
+
+with condition_t : Set :=
+  | condition_expr :
+    forall (e : expr_t), condition_t
+  | condition_decl :
+    (* this is the same as decl_initdef -- maybe merge? *)
+    forall (ds : decl_specifiers.t) (type : typeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (value : expr_t), condition_t
 
 (* expressions *)
 
@@ -403,6 +452,13 @@ with expr_t : Set :=
     forall (args : funargs_t),
     forall (body : stmts_t),
     expr_t
+  | expr_dynamic_cast :
+    forall (target_type : typeexpr_t) (value : expr_t),
+    expr_t
+  | expr_memdot :
+    forall (structure : expr_t) (member : idexpr_t), expr_t
+  | expr_memarrow :
+    forall (structure : expr_t) (member : idexpr_t), expr_t
 
 with callargs_t : Set :=
   | callargs_nil : callargs_t
@@ -421,16 +477,6 @@ with binder_t : Set :=
 
 Definition simple_id_serialize (id : string) : list token.t :=
   (token.identifier id) :: nil.
-
-(* XXX: to be part of mutual fix when accounting for templates *)
-Definition idexpr_serialize (this : idexpr_t) : list token.t :=
-  match this with
-    | idexpr_id id => simple_id_serialize id
-    | idexpr_destructor id =>
-      token.symbol token_symbol.tilda ::
-      simple_id_serialize id
-  end.
-
 
 (* determine whether residual typeexpr is supposed to be the "head"
 part of a declaration that is stated only once at beginning of a declarator
@@ -475,7 +521,9 @@ Module expr_prec.
   Inductive t : Set :=
     | none : t
     | unop : t
-    | binop : t.
+    | binop : t
+    | member_l : t
+  .
 
   Definition need_wrap (inner_prec : t) (outer_prec : t) : bool :=
     false.
@@ -538,9 +586,13 @@ with decl_serialize (this : decl_t) : list token.t :=
       ((token.keyword token_keyword.kw_class) :: nil) ++
       idexpr_serialize id ++
       ((token.symbol token_symbol.semicolon) :: nil)
-    | decl_class id body =>
+    | decl_class id is_final inherits body =>
       ((token.keyword token_keyword.kw_class) :: nil) ++
       idexpr_serialize id ++
+      (if is_final then
+        (token.keyword token_keyword.kw_final) :: nil
+      else nil) ++
+      clsinherits_serialize true inherits ++
       ((token.symbol token_symbol.open_brace) :: nil) ++
       clsdecls_serialize body ++
       ((token.symbol token_symbol.close_brace) :: nil) ++
@@ -561,6 +613,73 @@ with clsdecls_serialize (this : clsdecls_t) : list token.t :=
       clsdecls_serialize clsdecls
   end
 
+with clsdecl_serialize (this : clsdecl_t) : list token.t :=
+  match this with
+    | clsdecl_group visibility decls =>
+      visibility_spec.to_tokens visibility ++
+      ((token.symbol token_symbol.colon) :: nil) ++
+      decls_serialize decls
+  end
+
+with clsinherits_serialize (first : bool) (this : clsinherits_t) : list token.t :=
+  match this with
+    | clsinherits_nil => nil
+    | clsinherits_cons inherit inherits =>
+      (if first then
+        (token.symbol token_symbol.colon) :: nil
+      else
+        (token.symbol token_symbol.comma) :: nil) ++
+      clsinherit_serialize inherit ++
+      clsinherits_serialize false inherits
+  end
+
+with clsinherit_serialize (this : clsinherit_t) : list token.t :=
+  match this with
+    | clsinherit is_virtual visibility base =>
+      (if is_virtual then
+        (token.keyword token_keyword.kw_virtual) :: nil
+      else
+        nil) ++
+      visibility_spec.to_tokens visibility ++
+      idexpr_serialize base
+  end
+
+with idexpr_serialize (this : idexpr_t) : list token.t :=
+  match this with
+    | idexpr_id scope id => 
+      scope_serialize scope ++
+      simple_id_serialize id
+    | idexpr_destructor scope id =>
+      scope_serialize scope ++
+      token.symbol token_symbol.tilda ::
+      simple_id_serialize id
+    | idexpr_template scope tplid =>
+      scope_serialize scope ++
+      templateid_serialize tplid
+  end
+
+with scope_serialize (this : scope_t) : list token.t :=
+  match this with
+    | scope_none => nil
+    | scope_id id sub =>
+      simple_id_serialize id ++
+      ((token.symbol token_symbol.scope) :: nil) ++
+      scope_serialize sub
+    | scope_template tplid sub =>
+      templateid_serialize tplid ++
+      ((token.symbol token_symbol.scope) :: nil) ++
+      scope_serialize sub
+  end
+
+with templateid_serialize (this : templateid_t) : list token.t :=
+  match this with
+    | templateid name args =>
+      simple_id_serialize name ++
+      ((token.symbol token_symbol.lt) :: nil) ++
+      tplargs_serialize true args ++
+      ((token.symbol token_symbol.gt) :: nil)
+  end
+
 with tplformargs_serialize (first : bool) (this : tplformargs_t) : list token.t :=
   match this with
     | tplformargs_nil => nil
@@ -577,12 +696,20 @@ with tplformarg_serialize (this : tplformarg_t) : list token.t :=
       typeexpr_serialize inner typeexpr_prec.none false type
   end
 
-with clsdecl_serialize (this : clsdecl_t) : list token.t :=
+with tplargs_serialize (first : bool) (this : tplargs_t) : list token.t :=
   match this with
-    | clsdecl_group visibility decls =>
-      visibility_spec.to_tokens visibility ++
-      ((token.symbol token_symbol.colon) :: nil) ++
-      decls_serialize decls
+    | tplargs_nil => nil
+    | tplargs_cons arg args =>
+      (if first then nil else ((token.symbol token_symbol.comma) :: nil)) ++
+      tplarg_serialize arg ++ tplargs_serialize false args
+  end
+
+with tplarg_serialize (this : tplarg_t) : list token.t :=
+  match this with
+    | tplarg_type type =>
+      typeexpr_serialize nil typeexpr_prec.none false type
+    | tplarg_expr expr =>
+      expr_serialize expr_prec.none expr
   end
 
 with typeexpr_serialize
@@ -642,20 +769,36 @@ with typeexpr_serialize
       typeexpr_serialize inner typeexpr_prec.right_assoc skip_head type
     | typeexpr_function type =>
       funtypeexpr_serialize inner inner_prec skip_head type
+    | typeexpr_decltype expr =>
+      ((token.keyword token_keyword.kw_decltype) :: (token.symbol token_symbol.open_paren) :: nil) ++
+      expr_serialize expr_prec.none expr ++ ((token.symbol token_symbol.close_paren) :: nil)
   end
 
 with funtypeexpr_serialize
     (inner : list token.t)  (inner_prec : typeexpr_prec.t)
     (skip_head : bool) (this : funtypeexpr_t) : list token.t :=
   match this with
-    | funtypeexpr ret_type args =>
-      let inner := typeexpr_prec.maybe_wrap inner_prec typeexpr_prec.function inner in
-      let inner :=
-        inner ++
-        ((token.symbol token_symbol.open_paren) :: nil) ++
-        funargs_serialize true args ++
-        ((token.symbol token_symbol.close_paren) :: nil) in
-      typeexpr_serialize inner typeexpr_prec.function skip_head ret_type
+    | funtypeexpr ret_type args postfix =>
+      if postfix then
+        let inner := typeexpr_prec.maybe_wrap inner_prec typeexpr_prec.function inner in
+        let inner :=
+          inner ++
+          ((token.symbol token_symbol.open_paren) :: nil) ++
+          funargs_serialize true args ++
+          ((token.symbol token_symbol.close_paren) :: nil) in
+        let inner :=
+          ((token.keyword token_keyword.kw_auto) :: nil) ++ inner in
+        let post :=
+          typeexpr_serialize nil typeexpr_prec.none false ret_type in
+        inner ++ ((token.symbol token_symbol.arrow) :: nil) ++ post
+      else
+        let inner := typeexpr_prec.maybe_wrap inner_prec typeexpr_prec.function inner in
+        let inner :=
+          inner ++
+          ((token.symbol token_symbol.open_paren) :: nil) ++
+          funargs_serialize true args ++
+          ((token.symbol token_symbol.close_paren) :: nil) in
+        typeexpr_serialize inner typeexpr_prec.function skip_head ret_type
   end
 
 with funargs_serialize
@@ -686,8 +829,7 @@ with stmts_serialize
       stmts_serialize stmts
   end
 
-with stmt_serialize
-    (this : stmt_t) : list token.t :=
+with stmt_serialize (this : stmt_t) : list token.t :=
   match this with
     | stmt_decl decl => decl_serialize decl
     | stmt_expr expr => expr_serialize expr_prec.none expr ++ ((token.symbol token_symbol.semicolon) :: nil)
@@ -698,13 +840,13 @@ with stmt_serialize
     | stmt_if cond then_body =>
       ((token.keyword token_keyword.kw_if) :: nil) ++
       ((token.symbol token_symbol.open_paren) :: nil) ++
-      expr_serialize expr_prec.none cond ++
+      condition_serialize cond ++
       ((token.symbol token_symbol.close_paren) :: nil) ++
       stmt_serialize then_body
     | stmt_ifelse cond then_body else_body =>
       ((token.keyword token_keyword.kw_if) :: nil) ++
       ((token.symbol token_symbol.open_paren) :: nil) ++
-      expr_serialize expr_prec.none cond ++
+      condition_serialize cond ++
       ((token.symbol token_symbol.close_paren) :: nil) ++
       stmt_serialize then_body ++
       ((token.keyword token_keyword.kw_else) :: nil) ++
@@ -713,6 +855,18 @@ with stmt_serialize
       ((token.keyword token_keyword.kw_return) :: nil) ++
       expr_serialize expr_prec.none expr ++
       ((token.symbol token_symbol.semicolon) :: nil)
+  end
+
+with condition_serialize (this : condition_t) : list token.t :=
+  match this with
+    | condition_expr expr => expr_serialize expr_prec.none expr
+    | condition_decl ds type id attrs value =>
+      (* this is a copy of decl_initdef serialization *)
+      decl_specifiers.to_tokens ds ++
+      typeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
+      attr_specifiers.to_tokens attrs ++
+      ((token.symbol token_symbol.assign) :: nil) ++
+      expr_serialize expr_prec.none value
   end
 
 with expr_serialize (outer_prec : expr_prec.t) (this : expr_t) : list token.t :=
@@ -752,6 +906,22 @@ with expr_serialize (outer_prec : expr_prec.t) (this : expr_t) : list token.t :=
       ((token.symbol token_symbol.open_brace) :: nil) ++
       stmts_serialize body ++
       ((token.symbol token_symbol.close_brace) :: nil)
+    | expr_dynamic_cast target_type value =>
+      ((token.keyword token_keyword.kw_dynamic_cast) :: nil) ++
+      ((token.symbol token_symbol.lt) :: nil) ++
+      typeexpr_serialize nil typeexpr_prec.none false target_type ++
+      ((token.symbol token_symbol.gt) :: nil) ++
+      ((token.symbol token_symbol.open_paren) :: nil) ++
+      expr_serialize expr_prec.none value ++
+      ((token.symbol token_symbol.close_paren) :: nil)
+    | expr_memdot structure member =>
+      expr_serialize expr_prec.member_l structure ++
+      ((token.symbol token_symbol.dot) :: nil) ++
+      idexpr_serialize member
+    | expr_memarrow structure member =>
+      expr_serialize expr_prec.member_l structure ++
+      ((token.symbol token_symbol.arrow) :: nil) ++
+      idexpr_serialize member
   end
 
 with callargs_serialize (first : bool) (this : callargs_t) : list token.t :=
@@ -797,14 +967,14 @@ Example ex_decl_array_of_pointers :=
     decl_simple
       nil
       (typeexpr_array (typeexpr_pointer (typeexpr_primitive primtype.int)) (expr_literal (literal.decimal 32)))
-      (idexpr_id "foo")
+      (idexpr_id scope_none "foo")
       nil.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_array_of_pointers)).
 Example ex_decl_pointer_of_array :=
     decl_simple
       nil
       (typeexpr_pointer (typeexpr_array (typeexpr_primitive primtype.int) (expr_literal (literal.decimal 32))))
-      (idexpr_id "foo")
+      (idexpr_id scope_none "foo")
       nil.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_pointer_of_array)).
 Example ex_decl_fun :=
@@ -813,13 +983,13 @@ Example ex_decl_fun :=
       (typeexpr_function
         (funtypeexpr
           (typeexpr_pointer (typeexpr_primitive primtype.int))
-          (make_funargs (funarg_named (typeexpr_primitive primtype.int) "a" :: funarg_named (typeexpr_primitive primtype.char) "b" :: nil))))
-      (idexpr_id "foo")
+          (make_funargs (funarg_named (typeexpr_primitive primtype.int) "a" :: funarg_named (typeexpr_primitive primtype.char) "b" :: nil)) false))
+      (idexpr_id scope_none "foo")
       nil.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_fun)).
 Example ex_decl_class :=
     decl_class
-      (idexpr_id "foo")
+      (idexpr_id scope_none "foo") false clsinherits_nil
       (make_clsdecls (
         (clsdecl_group
           visibility_spec.vis_public
@@ -840,8 +1010,9 @@ Example ex_decl_funptr :=
         (typeexpr_function
           (funtypeexpr
             (typeexpr_pointer (typeexpr_primitive primtype.int))
-            (funargs_nil)))))
-      (idexpr_id "foo")
+            (funargs_nil)
+            false))))
+      (idexpr_id scope_none "foo")
       nil.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_funptr)).
 
@@ -853,8 +1024,9 @@ Example ex_decl_fundef :=
       (make_funargs (
         funarg_named (typeexpr_primitive primtype.int) "a" ::
         funarg_named (typeexpr_primitive primtype.char) "b" ::
-        nil)))
-    (idexpr_id "foo")
+        nil))
+      false)
+    (idexpr_id scope_none "foo")
     nil
     (make_stmts (
       (stmt_return (expr_literal (literal.decimal 32))) ::
@@ -870,13 +1042,14 @@ Example ex_hello_world_main :=
       (make_funargs (
         funarg_named (typeexpr_primitive primtype.int) "args" ::
         funarg_named (typeexpr_pointer (typeexpr_pointer (typeexpr_primitive primtype.char))) "argv" ::
-        nil)))
-    (idexpr_id "main")
+        nil))
+      false)
+    (idexpr_id scope_none "main")
     nil
     (make_stmts (
       (stmt_expr
         (expr_call
-          (expr_id (idexpr_id "printf"))
+          (expr_id (idexpr_id scope_none "printf"))
           (make_callargs (
             expr_literal (literal.str "Hello world!") ::
             nil)))) ::
