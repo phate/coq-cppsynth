@@ -3,7 +3,7 @@ LIBJSYN_SRC = \
 
 all: libjsyn.a convert
 
-libjsyn.a: CFLAGS += --std=c++17 -g
+libjsyn.a: CFLAGS += -Wall -Wpedantic -Wextra --std=c++17 -g
 libjsyn.a: CPPFLAGS += -Iinclude
 libjsyn.a: $(patsubst %.cc, %.la, $(LIBJSYN_SRC))
 
@@ -15,7 +15,7 @@ libjsyn.a: $(patsubst %.cc, %.la, $(LIBJSYN_SRC))
 	ar clqv $@ $^
 	ranlib $@
 
-convert: CFLAGS += --std=c++17 -g -O2
+convert: CFLAGS += -Wall -Wpedantic -Wextra --std=c++17 -g -O2
 convert: CPPFLAGS += -Iinclude
 convert: LDFLAGS += -L. -ljsyn
 convert: convert.cc libjsyn.a

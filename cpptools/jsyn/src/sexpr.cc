@@ -1,5 +1,7 @@
 #include <jsyn/sexpr.hpp>
 
+#include <sstream>
+
 namespace jsyn {
 
 /* sexpr class */
@@ -43,7 +45,7 @@ collect_globrefs(const sexpr& e)
 class varctx {
 public:
 	const std::string&
-	lookup(int index) const;
+	lookup(size_t index) const;
 
 	varctx
 	push(std::string& name) const;
@@ -117,7 +119,7 @@ varctx::enter_module(const std::string& name) const
 }
 
 const std::string&
-varctx::lookup(int index) const
+varctx::lookup(size_t index) const
 {
 	if (index <= names_.size()) {
 		return names_by_index_[names_.size() - index];
@@ -244,9 +246,8 @@ format_branches(
 			}
 		}
 		out += " => ";
-		for (const auto& arg : unfold_args) {
-			out += "(";
-		}
+		out += std::string(unfold_args.size(), '(');
+
 		format_expr(*e, newctx, indent + "  ", out);
 		for (const auto& arg : unfold_args) {
 			out += " " + arg + ")";
@@ -280,7 +281,7 @@ static void
 format_global(
   const sexpr::list& args
 , const varctx& ctx
-, const std::string& indent
+, const std::string&
 , std::string& out)
 {
 	out += ctx.contextualize_global(args[0]->to_string());
@@ -290,18 +291,18 @@ static void
 format_local(
   const sexpr::list& args
 , const varctx& ctx
-, const std::string& indent
+, const std::string&
 , std::string& out)
 {
-	int index = stoi(args[1]->to_string());
+	size_t index = stol(args[1]->to_string());
 	out += ctx.lookup(index);
 }
 
 static void
 format_sort(
   const sexpr::list& args
-, const varctx& ctx
-, const std::string& indent
+, const varctx&
+, const std::string&
 , std::string& out)
 {
 	out += args[0]->to_string();
