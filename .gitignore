@@ -8,3 +8,6 @@ Makefile.coq
 Makefile.coq.conf
 *.o
 *.aux
+*.la
+*.a
+cpptools/jsyn/convert
