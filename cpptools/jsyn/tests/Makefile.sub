@@ -1,0 +1,29 @@
+TEST_SOURCES = tests/registry.cc tests/test-runner.cc $(patsubst %, tests/%.cc, $(TESTS))
+
+$(patsubst %, tests/%.la, $(TESTS)): CPPFLAGS += -Itests
+
+tests/test-runner: LDFLAGS += -L. -ljsyn
+tests/test-runner: %: $(patsubst %.cc, %.la, $(TEST_SOURCES)) libjsyn.a
+	$(CXX) -o $@ $(filter %.la, $^) $(LDFLAGS)
+
+# Terminal font colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NOCOLOR='\033[0m'
+
+.PHONY: check
+check: tests/test-runner
+	@rm -f check.log passed.log failed.log
+	@for TEST in `tests/test-runner`; do \
+		if tests/test-runner $$TEST >> check.log 2>&1 ; then \
+			echo "$$TEST" >> passed.log ; \
+		else \
+			echo "$$TEST" >> failed.log ; \
+		fi ; \
+	done
+	@if [ -e failed.log ] ; then \
+		echo $(RED)Failed:$(NOCOLOR) ; \
+		cat failed.log ; \
+	else \
+		echo $(GREEN)All tests passed$(NOCOLOR) ; \
+	fi

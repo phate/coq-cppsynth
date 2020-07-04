@@ -13,3 +13,7 @@ Makefile.coq.conf
 *.la
 *.a
 cpptools/jsyn/convert
+cpptools/jsyn/check.log
+cpptools/jsyn/passed.log
+cpptools/jsyn/failed.log
+cpptools/jsyn/tests/test-runner

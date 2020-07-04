@@ -3,10 +3,14 @@ LIBJSYN_SRC = \
 	\
 	src/util/exception.cc \
 
-all: libjsyn.a convert
+CFLAGS += -Wall -Wpedantic -Wextra --std=c++17 -g
+CPPFLAGS += -DJSYN_ENABLE_ASSERTS -Iinclude
 
-libjsyn.a: CFLAGS += -Wall -Wpedantic -Wextra --std=c++17 -g
-libjsyn.a: CPPFLAGS += -DJSYN_WITH_ASSERTS -Iinclude
+
+all: check convert
+
+include tests/Makefile.sub
+
 libjsyn.a: $(patsubst %.cc, %.la, $(LIBJSYN_SRC))
 
 %.la: %.cc
@@ -17,14 +21,15 @@ libjsyn.a: $(patsubst %.cc, %.la, $(LIBJSYN_SRC))
 	ar clqv $@ $^
 	ranlib $@
 
-convert: CFLAGS += -Wall -Wpedantic -Wextra --std=c++17 -g -O2
-convert: CPPFLAGS += -DJSYN_ENABLE_ASSERTS -Iinclude
+convert: CFLAGS += -O2
 convert: LDFLAGS += -L. -ljsyn
 convert: convert.cc libjsyn.a
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
 
 clean:
 	find -name "*.la" | xargs rm -f
+	rm -f check.log passed.log failed.log
+	rm -f tests/test-runner
 	rm -f libjsyn.a
 	rm -f convert
 
