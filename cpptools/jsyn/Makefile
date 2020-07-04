@@ -1,5 +1,7 @@
 LIBJSYN_SRC = \
-	src/sexpr.cc
+	src/sexpr.cc \
+	\
+	src/util/exception.cc \
 
 all: libjsyn.a convert
 
