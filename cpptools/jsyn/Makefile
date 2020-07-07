@@ -1,6 +1,8 @@
 LIBJSYN_SRC = \
 	src/sexpr.cc \
 	\
+	src/ir/types.cc \
+	\
 	src/util/exception.cc \
 
 CFLAGS += -Wall -Wpedantic -Wextra --std=c++17 -g

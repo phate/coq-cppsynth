@@ -1,3 +1,5 @@
+include tests/ir/Makefile.sub
+
 TEST_SOURCES = \
 	tests/registry.cc \
 	tests/testnodes.cc \
