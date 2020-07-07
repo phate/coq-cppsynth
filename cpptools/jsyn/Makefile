@@ -4,7 +4,7 @@ LIBJSYN_SRC = \
 	src/util/exception.cc \
 
 CFLAGS += -Wall -Wpedantic -Wextra --std=c++17 -g
-CPPFLAGS += -DJSYN_ENABLE_ASSERTS -Iinclude
+CPPFLAGS += -DJIVE_DEBUG -DJSYN_ENABLE_ASSERTS -Iinclude
 
 
 all: check convert

@@ -1,9 +1,13 @@
-TEST_SOURCES = tests/registry.cc tests/test-runner.cc $(patsubst %, tests/%.cc, $(TESTS))
+TEST_SOURCES = \
+	tests/registry.cc \
+	tests/testtypes.cc \
+	tests/test-runner.cc \
+	$(patsubst %, tests/%.cc, $(TESTS))
 
 $(patsubst %, tests/%.la, $(TESTS)): CPPFLAGS += -Itests
 
-tests/test-runner: LDFLAGS += -L. -ljsyn
-tests/test-runner: %: $(patsubst %.cc, %.la, $(TEST_SOURCES)) libjsyn.a
+tests/test-runner: LDFLAGS += -L. -L$(JIVE_ROOT) -ljsyn -ljive
+tests/test-runner: %: $(patsubst %.cc, %.la, $(TEST_SOURCES)) libjsyn.a $(JIVE_ROOT)/libjive.a
 	$(CXX) -o $@ $(filter %.la, $^) $(LDFLAGS)
 
 # Terminal font colors
