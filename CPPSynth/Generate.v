@@ -28,6 +28,16 @@ Module cg.
         idexpr_template (scope_id "std" scope_none) (templateid "declval"
           (tplargs_cons (tplarg_type type) tplargs_nil))))
       callargs_nil.
+  Definition move_of (expr : expr_t) : expr_t :=
+    expr_call
+      (expr_id (idexpr_id (scope_id "std" scope_none) "move"))
+      (make_callargs (expr :: nil)).
+  Definition make_shared_of (type : typeexpr_t) (args : list expr_t) :=
+    expr_call
+      (expr_id (
+        idexpr_template (scope_id "std" scope_none) (templateid "make_shared"
+          (tplargs_cons (tplarg_type type) tplargs_nil))))
+      (make_callargs args).
   Definition fn_type (result_type : typeexpr_t) (args : list (option string * typeexpr_t)) : typeexpr_t :=
     let fnargs := make_funargs (map (fun (a : option string * typeexpr_t) => let (name, type) := a in
       match name with
@@ -36,6 +46,18 @@ Module cg.
       end) args) in
     typeexpr_function (funtypeexpr result_type fnargs false).
   Definition type_auto := typeexpr_primitive primtype.auto.
+  Definition throw_logic_error (msg : string) :=
+    let std_logic_error :=
+      expr_id (idexpr_id (scope_id "std" scope_none) "logic_error") in
+    let arg := expr_literal (literal.str msg) in
+    expr_throw (expr_call std_logic_error (make_callargs (arg :: nil))).
+  Definition deleted_constructor (name : string) (args : list funarg_t): decl_t :=
+    decl_consdesdef_special
+      nil
+      (idexpr_id scope_none name)
+      (make_funargs args)
+      nil
+      special_fundef.def_delete.
 End cg.
 
 Fixpoint make_tplargs (args : list tplarg_t) : tplargs_t :=
@@ -165,6 +187,7 @@ Definition gen_virtual_destructor_decldef (name : string) : decl_t :=
     (idexpr_destructor scope_none name)
     (make_funargs nil)
     nil
+    ctor_initializers_nil
     (make_stmts nil).
 
 Definition make_repr_base_class (name : string) :=
@@ -187,6 +210,13 @@ Definition constructor_reprclass_members (cons : inductive_constructor.t)
     : list (string * expr.t) :=
   fst (product_named_unfold (inductive_constructor.type cons)).
 
+Fixpoint make_ctor_initializers (is : list ctor_initializer_t)
+    : ctor_initializers_t :=
+  match is with
+    | nil => ctor_initializers_nil
+    | cons i is => ctor_initializers_cons i (make_ctor_initializers is)
+  end.
+
 Definition make_constructor_repr_class
     (cons : inductive_constructor.t)
     (environ : env.t) :=
@@ -197,6 +227,26 @@ Definition make_constructor_repr_class
       let (name, e) := mem in
       let type := env.to_type e environ in
       decl_simple nil type (idexpr_id scope_none name) nil) members in
+  let init_formal_args := map
+    (fun (mem : string * expr.t) =>
+      let (name, e) := mem in
+      let type := env.to_type e environ in
+      funarg_named type (name ++ "_init")) members in
+  let initializers := map
+    (fun (mem : string * expr.t) =>
+      let (name, e) := mem in
+      ctor_initializer 
+        (idexpr_id scope_none name)
+        (cg.move_of (expr_id (idexpr_id scope_none (name ++ "_init"))))) members in
+  let cls_constructor := decl_consdesdef
+    nil
+    (idexpr_id scope_none name)
+    (make_funargs init_formal_args)
+    nil
+    (make_ctor_initializers initializers)
+    stmts_nil in
+  let eq_operator :=
+    decl_fundef
   decl_class 
     (idexpr_id scope_none (name))
     true
@@ -204,7 +254,7 @@ Definition make_constructor_repr_class
     (make_clsdecls 
       ((clsdecl_group
         visibility_spec.vis_public
-        (make_decls member_decls)) :: nil)).
+        (make_decls (cls_constructor :: member_decls))) :: nil)).
 
 (*
   Roughly builds the following:
@@ -243,13 +293,13 @@ Definition make_single_match_test
   constructor repr classes (via dynamic_cast) and dispatches to the
   corresponding call expression.
 *)
-Fixpoint match_constructors
+Fixpoint make_match_constructors
     (base_expr : expr_t) (branches : list (inductive_constructor.t * expr_t))
     : stmt_t :=
   match branches with
-    | nil => stmt_block (make_stmts nil) (* XXX: should be std::logic_error *)
+    | nil => stmt_block (make_stmts (stmt_expr (cg.throw_logic_error "impossible case" ) :: nil))
     | branch :: branches =>
-      let sub := match_constructors base_expr branches in
+      let sub := make_match_constructors base_expr branches in
       let (cons, call_expr) := branch in
       let cons_name := constructor_reprclass_name cons in
       let cons_members := constructor_reprclass_members cons in
@@ -259,6 +309,19 @@ Fixpoint match_constructors
       let (cond, body) := make_single_match_test base_expr as_type temp_name call_expr member_names in
       stmt_ifelse cond body sub
   end.
+
+Definition make_name_type_pairs (args : list (option string * expr.t)) (environ : env.t)
+    : list (string * typeexpr_t) :=
+  map
+    (fun (ca : option string * expr.t) =>
+      let (n, e) := ca in
+      let type := env.to_type e environ in
+      let name := match n with
+        | Some n => n
+        | None => "_"%string
+      end in
+      (name, type))
+    args.
 
 Definition make_match_fntype
     (constructors : list inductive_constructor.t)
@@ -293,11 +356,67 @@ Definition make_match_fntype
       (nil, funtypeexpr (typeexpr_primitive primtype.void) funargs_nil false)
   end.
 
+Definition make_inductive_cons_factory_fn
+    (ind_clsname : string) (consname : string) (cons_args : list (string * expr.t))
+    : decl_t :=
+  let environ := env.empty in
+  let formal_args :=
+    map
+      (fun (c : string * expr.t) =>
+        let (name, e) := c in
+        funarg_named (env.to_type e environ) name)
+      cons_args in
+  let args :=
+    map
+      (fun (c : string * expr.t) =>
+        let (name, e) := c in
+        cg.move_of (expr_id (idexpr_id scope_none name)))
+      cons_args in
+  let fntype :=
+    funtypeexpr 
+      (cg.named_type ind_clsname) 
+      (make_funargs formal_args)
+      false in
+  let repr_instance := 
+    cg.make_shared_of 
+      (cg.named_type (consname ++ "_repr")) 
+      args in
+  let cls_instance :=
+    expr_call (expr_id (idexpr_id scope_none ind_clsname)) (make_callargs (repr_instance :: nil)) in
+  decl_fundef
+    (decl_specifier.ds_static :: nil)
+    fntype
+    (idexpr_id scope_none consname)
+    nil
+    (make_stmts (stmt_return cls_instance :: nil)).
+
 Definition one_inductive_decl (oi : one_inductive.t) : decl_t :=
   let environ := env.empty in
   let (name, sig, constructors) := oi in
-  let tpl := collect_tplformargs_from_product sig in
+
+  (* names of the inductive constructors *)
   let consnames := map (fun (c : inductive_constructor.t) => let (name, _) := c in name) constructors in
+
+  (* template arguments, in case this is a parameterized inductive type *)
+  let tpl := collect_tplformargs_from_product sig in
+
+  (* the C++ class name... *)
+  let cls_name := name in
+  let cls_id := idexpr_id scope_none cls_name in
+  let cls_type := typeexpr_id cls_id in
+
+  (* the repr_ member id *)
+  let id_repr_m := (idexpr_id scope_none "repr_") in
+
+  (* internal base representation class, abstract *)
+  let repr_base_class_def := make_repr_base_class "repr_base" in
+  let repr_ptr_type := (cg.shared_ptr_of (cg.named_type "repr_base")) in
+
+  (* internal representation classes, to represent the different
+  inductive constructors *)
+  let repr_classes := map (fun c => make_constructor_repr_class c environ) constructors in
+
+  (* match function to discriminate between the different constructors *)
   let (match_fn_tplargs, match_fn_type) := make_match_fntype constructors environ in
   let cons_call := map
     (fun (cons : inductive_constructor.t) => 
@@ -308,21 +427,97 @@ Definition one_inductive_decl (oi : one_inductive.t) : decl_t :=
       match_fn_type
       (idexpr_id scope_none "match") 
       nil 
-      (stmts_cons (match_constructors (expr_id (idexpr_id scope_none "repr_")) cons_call) stmts_nil) in
+      (stmts_cons (make_match_constructors (expr_id id_repr_m) cons_call) stmts_nil) in
   let match_fn_tpldecl := maybe_template (make_tplformargs match_fn_tplargs) match_fn_decl in
-  let constructor_classes := map (fun c => make_constructor_repr_class c environ) constructors in
-  let d := decl_class (idexpr_id scope_none name) false clsinherits_nil
+
+  (* The static factory functions to create instances of this object
+  per each inductive constructor. *)
+  let factory_fns :=
+    map
+      (fun (cons : inductive_constructor.t) =>
+        let (consname, _) := cons in
+        let members := constructor_reprclass_members cons in
+        make_inductive_cons_factory_fn cls_name consname members
+      )
+      constructors in
+
+  (* C++ class constructors *)
+  let primary_constructor :=
+    decl_consdesdef
+      (decl_specifier.ds_explicit :: nil)
+      cls_id
+      (make_funargs ((funarg_named repr_ptr_type "repr") :: nil))
+      (attr_specifier.as_noexcept :: nil)
+      (ctor_initializers_cons (ctor_initializer (idexpr_id scope_none "repr_") (cg.move_of (expr_id (idexpr_id scope_none "repr")))) ctor_initializers_nil)
+      (make_stmts nil) in
+  let copy_constructor :=
+    decl_consdesdef_special
+      nil
+      cls_id
+      (make_funargs (((funarg_named (cg.constref_of cls_type) "other")) :: nil))
+      (attr_specifier.as_noexcept :: nil)
+      special_fundef.def_default in
+  let move_constructor :=
+    decl_consdesdef_special
+      nil
+      cls_id
+      (make_funargs (((funarg_named (typeexpr_rvaluereference cls_type) "other")) :: nil))
+      (attr_specifier.as_noexcept :: nil)
+      special_fundef.def_default in
+  let default_constructor := cg.deleted_constructor cls_name nil in
+
+  let assign_operator :=
+    decl_fundef
+      nil
+      (funtypeexpr
+        (typeexpr_reference cls_type)
+        (make_funargs (funarg_named (cg.constref_of cls_type) "other" :: nil))
+        false)
+      (idexpr_operator scope_none (overloadable_operator.binary binop.assign))
+      (attr_specifier.as_noexcept :: nil)
+      (make_stmts (
+        stmt_expr (expr_binop binop.assign (expr_id id_repr_m)
+          (expr_memarrow (expr_id (idexpr_id scope_none "other")) id_repr_m)) ::
+        stmt_return (expr_unop unop.deref (expr_id (idexpr_id scope_none "this"))) ::
+        nil)) in
+
+  let assign_move_operator :=
+    decl_fundef
+      nil
+      (funtypeexpr
+        (typeexpr_reference cls_type)
+        (make_funargs (funarg_named (typeexpr_rvaluereference cls_type) "other" :: nil))
+        false)
+      (idexpr_operator scope_none (overloadable_operator.binary binop.assign))
+      (attr_specifier.as_noexcept :: nil)
+      (make_stmts (
+        stmt_expr (expr_binop binop.assign (expr_id id_repr_m)
+          (cg.move_of (expr_memarrow (expr_id (idexpr_id scope_none "other")) id_repr_m))) ::
+        stmt_return (expr_unop unop.deref (expr_id (idexpr_id scope_none "this"))) ::
+        nil)) in
+
+  let repr_member_decl := (decl_simple nil repr_ptr_type id_repr_m nil) in
+  let d := decl_class cls_id false clsinherits_nil
     (make_clsdecls 
       ((clsdecl_group
         visibility_spec.vis_public
         (make_decls
-          (match_fn_tpldecl :: nil))) ::
+          (default_constructor ::
+           copy_constructor ::
+           move_constructor ::
+           assign_operator ::
+           assign_move_operator ::
+           factory_fns ++
+           match_fn_tpldecl :: 
+           nil))) ::
       (clsdecl_group
         visibility_spec.vis_private
         (make_decls (
-          make_repr_base_class "repr_base" ::
-          (decl_simple nil (cg.shared_ptr_of (cg.named_type "repr_base")) (idexpr_id scope_none "repr_") nil) ::
-          constructor_classes))) ::
+          repr_base_class_def ::
+          repr_classes ++ 
+          primary_constructor :: 
+          repr_member_decl :: 
+          nil))) ::
       nil)) in
   maybe_template tpl d.
 
@@ -337,11 +532,11 @@ Example sort_set := (expr.global "Set"%string).
 Example oiX :=
   one_inductive.make "X" (expr.product (Some "T"%string) sort_set sort_set) (
     (* constructors *)
-    inductive_constructor.make "X0" 
+    inductive_constructor.make "X0"
       (expr.product (Some "t"%string)
-        (expr.local "T"%string 1) 
+        (expr.local "T"%string 1)
         (expr.app (expr.global "X"%string) (expr.local "T"%string 1))) ::
-    inductive_constructor.make "X1" 
+    inductive_constructor.make "X1"
       (expr.product (Some "y"%string)
         (expr.app (expr.global "Y"%string) (expr.local "T"%string 1))
         (expr.app (expr.global "X"%string) (expr.local "T"%string 1))) ::
@@ -354,3 +549,21 @@ Eval lazy in (collect_tplformargs_from_product (let (_, sig, _) := oiX in sig)).
 Eval lazy in (serialize_tokens (decls_serialize (to_decls (inductive_fwd i1)))).
 
 Eval lazy in (serialize_tokens (decl_serialize (one_inductive_decl oiX))).
+
+
+(*
+
+TODO:
+
+- equality operator of X ???
+- un-inline from declaration
+- full support for mutual inductive defs
+
+DONE:
+
++ C++ constructors of X
++ C++ factory functions corresponding to inductive constructors
++ C++ constructors of repr classes
+- assignment operator of X
+
+*)
