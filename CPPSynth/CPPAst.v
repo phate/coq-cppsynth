@@ -19,13 +19,19 @@ Module token_symbol.
     | plus : t
     | minus : t
     | star : t
+    | slash : t
+    | percent : t
     | tilda : t
     | exclam : t
     | amp : t
+    | pipe : t
+    | wedge : t
     | eq : t
     | ne : t
     | lt : t
+    | le : t
     | gt : t
+    | ge : t
     | open_paren : t
     | close_paren : t
     | open_brace : t
@@ -39,21 +45,43 @@ Module token_symbol.
     | question : t
     | arrow : t
     | dot : t
+    | double_amp : t
+    | double_pipe : t
+    | double_lt : t
+    | double_gt : t
+    | double_plus : t
+    | double_minus : t
+    | assign_plus : t
+    | assign_minus : t
+    | assign_mul : t
+    | assign_div : t
+    | assign_modulo : t
+    | assign_and : t
+    | assign_or : t
+    | assign_xor : t
+    | assign_shl : t
+    | assign_shr : t
   .
 
   Definition to_string (this : t) : String.string :=
     match this with
       | assign => "="
       | amp => "&"
+      | pipe => "|"
+      | wedge => "^"
       | plus => "+"
       | minus => "-"
       | star => "*"
+      | slash => "/"
+      | percent => "%"
       | tilda => "~"
       | exclam => "!"
       | eq => "=="
       | ne => "!="
       | lt => "<"
+      | le => "<="
       | gt => ">"
+      | ge => ">="
       | open_brace => "{"
       | close_brace => "}"
       | open_bracket => "["
@@ -67,6 +95,22 @@ Module token_symbol.
       | question => "?"
       | arrow => "->"
       | dot => "."
+      | double_amp => "&&"
+      | double_pipe => "||"
+      | double_lt => "<<"
+      | double_gt => ">>"
+      | double_plus => "++"
+      | double_minus => "--"
+      | assign_plus => "+="
+      | assign_minus => "-="
+      | assign_mul => "*="
+      | assign_div => "/="
+      | assign_modulo => "%="
+      | assign_and => "&="
+      | assign_or => "|="
+      | assign_xor => "^="
+      | assign_shl => "<<="
+      | assign_shr => ">>="
     end.
 End token_symbol.
 
@@ -106,6 +150,11 @@ Module token_keyword.
     | kw_decltype : t
     | kw_dynamic_cast : t
     | kw_final : t
+    | kw_throw : t
+    | kw_default : t
+    | kw_delete : t
+    | kw_new : t
+    | kw_operator : t
   .
 
   Definition to_string (this : t) : String.string :=
@@ -144,6 +193,11 @@ Module token_keyword.
       | kw_decltype => "decltype"
       | kw_dynamic_cast => "dynamic_cast"
       | kw_final => "final"
+      | kw_throw => "throw"
+      | kw_default => "default"
+      | kw_delete => "delete"
+      | kw_new => "new"
+      | kw_operator => "operator"
     end.
 
 End token_keyword.
@@ -177,18 +231,33 @@ Definition serialize_tokens (tokens : list token.t) : string :=
 Module unop.
   Inductive t : Set :=
     | negate
-    | bitnot
-    | logicnot
+    | bit_not
+    | logic_not
     | deref
-    | addrof.
+    | address_of
+    | pre_inc
+    | post_inc
+    | pre_dec
+    | post_dec
+  .
 
   Definition to_symbol (unop : t) : token_symbol.t :=
     match unop with
       | negate => token_symbol.minus
-      | bitnot => token_symbol.tilda
-      | logicnot => token_symbol.exclam
+      | bit_not => token_symbol.tilda
+      | logic_not => token_symbol.exclam
       | deref => token_symbol.star
-      | addrof => token_symbol.amp
+      | address_of => token_symbol.amp
+      | pre_inc => token_symbol.double_plus
+      | post_inc => token_symbol.double_plus
+      | pre_dec => token_symbol.double_minus
+      | post_dec => token_symbol.double_minus
+    end.
+  Definition is_prefix (unop : t) : bool :=
+    match unop with
+      | post_inc => false
+      | post_dec => false
+      | _ => true
     end.
 End unop.
 
@@ -197,15 +266,60 @@ Module binop.
     | assign
     | plus
     | minus
+    | mul
+    | div
+    | modulo
     | eq
-    | ne.
+    | ne
+    | lt
+    | le
+    | gt
+    | ge
+    | logic_and
+    | logic_or
+    | bitwise_and
+    | bitwise_or
+    | bitwise_xor
+    | assign_plus
+    | assign_minus
+    | assign_mul
+    | assign_div
+    | assign_modulo
+    | assign_and
+    | assign_or
+    | assign_xor
+    | assign_shl
+    | assign_shr
+  .
   Definition to_symbol (binop : t) : token_symbol.t :=
     match binop with
       | assign => token_symbol.assign
       | plus => token_symbol.plus
       | minus => token_symbol.minus
+      | mul => token_symbol.star
+      | div => token_symbol.slash
+      | modulo => token_symbol.percent
       | eq => token_symbol.eq
       | ne => token_symbol.ne
+      | lt => token_symbol.lt
+      | le => token_symbol.le
+      | gt => token_symbol.gt
+      | ge => token_symbol.ge
+      | logic_and => token_symbol.double_amp
+      | logic_or => token_symbol.double_pipe
+      | bitwise_and => token_symbol.amp
+      | bitwise_or => token_symbol.pipe
+      | bitwise_xor => token_symbol.wedge
+      | assign_plus => token_symbol.assign_plus
+      | assign_minus => token_symbol.assign_minus
+      | assign_mul => token_symbol.assign_mul
+      | assign_div => token_symbol.assign_div
+      | assign_modulo => token_symbol.assign_modulo
+      | assign_and => token_symbol.assign_and
+      | assign_or => token_symbol.assign_or
+      | assign_xor => token_symbol.assign_xor
+      | assign_shl => token_symbol.assign_shl
+      | assign_shr => token_symbol.assign_shr
     end.
 End binop.
 
@@ -301,6 +415,54 @@ Module attr_specifiers.
     fold_left (fun result ds => result ++ (attr_specifier.to_tokens ds)) this result.
 End attr_specifiers.
 
+Module special_fundef.
+  Inductive t : Set :=
+    | def_pure : t
+    | def_default : t
+    | def_delete : t.
+
+  Definition to_token (this : t) : token.t :=
+    match this with
+      | def_pure => token.literal (literal.decimal 0)
+      | def_default => token.keyword token_keyword.kw_default
+      | def_delete => token.keyword token_keyword.kw_delete
+    end.
+
+End special_fundef.
+
+Module overloadable_operator.
+  Inductive t : Set :=
+    | unary : forall (op : unop.t), t
+    | binary : forall (op : binop.t), t
+    | call : t
+    | dereference : t
+    | arrow : t
+    | address_of : t
+  .
+
+  Definition to_tokens (this : t) : list token.t :=
+    match this with
+      | unary op =>
+        token.symbol (unop.to_symbol op) :: nil
+      | binary op =>
+        token.symbol (binop.to_symbol op) :: nil
+      | call =>
+        token.symbol token_symbol.open_paren :: 
+        token.symbol token_symbol.close_paren ::
+        nil
+      | dereference =>
+        token.symbol token_symbol.star :: 
+        nil
+      | arrow =>
+        token.symbol token_symbol.arrow :: 
+        nil
+      | address_of =>
+        token.symbol token_symbol.amp :: 
+        nil
+    end.
+
+End overloadable_operator.
+
 (* declarators, namespace / class level *)
 Inductive decls_t : Set :=
   | decls_nil : decls_t
@@ -314,10 +476,14 @@ with decl_t : Set :=
     forall (ds : decl_specifiers.t) (type : typeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (value : expr_t), decl_t
   | decl_fundef : (* strict function definitions *)
     forall (ds : decl_specifiers.t) (type : funtypeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (body : stmts_t), decl_t
+  | decl_fundef_special : (* special function definitions *)
+    forall (ds : decl_specifiers.t) (type : funtypeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (def : special_fundef.t), decl_t
   | decl_consdesdecl : (* constructor and destructor declarations *)
     forall (ds : decl_specifiers.t) (id : idexpr_t) (args : funargs_t) (attrs : attr_specifiers.t), decl_t
   | decl_consdesdef : (* constructor and destructor definitions *)
-    forall (ds : decl_specifiers.t) (id : idexpr_t) (args : funargs_t) (attrs : attr_specifiers.t) (body : stmts_t), decl_t
+    forall (ds : decl_specifiers.t) (id : idexpr_t) (args : funargs_t) (attrs : attr_specifiers.t) (init : ctor_initializers_t) (body : stmts_t), decl_t
+  | decl_consdesdef_special : (* constructor and destructor definitions *)
+    forall (ds : decl_specifiers.t) (id : idexpr_t) (args : funargs_t) (attrs : attr_specifiers.t) (def : special_fundef.t), decl_t
   | decl_class_fwd :
     forall (id : idexpr_t), decl_t
   | decl_class :
@@ -338,15 +504,24 @@ with clsinherits_t : Set :=
   | clsinherits_cons : clsinherit_t -> clsinherits_t -> clsinherits_t
 
 with clsinherit_t : Set :=
-  | clsinherit : 
+  | clsinherit :
     forall (is_virtual : bool) (visibility : visibility_spec.t) (base : idexpr_t),
     clsinherit_t
+
+with ctor_initializers_t : Set :=
+  | ctor_initializers_nil : ctor_initializers_t
+  | ctor_initializers_cons : ctor_initializer_t -> ctor_initializers_t -> ctor_initializers_t
+
+with ctor_initializer_t : Set :=
+  | ctor_initializer :
+    forall (id : idexpr_t) (expr : expr_t), ctor_initializer_t
 
 (* expression for an id -- needs to include namespace and template-ids, then *)
 with idexpr_t : Set :=
   | idexpr_id : scope_t -> string -> idexpr_t
   | idexpr_destructor : scope_t -> string -> idexpr_t
   | idexpr_template : scope_t -> templateid_t -> idexpr_t
+  | idexpr_operator : scope_t -> overloadable_operator.t -> idexpr_t
 
 with scope_t : Set :=
   | scope_none : scope_t
@@ -386,6 +561,7 @@ with typeexpr_t : Set :=
   | typeexpr_volatile : typeexpr_t -> typeexpr_t
   | typeexpr_pointer : typeexpr_t -> typeexpr_t
   | typeexpr_reference : typeexpr_t -> typeexpr_t
+  | typeexpr_rvaluereference : typeexpr_t -> typeexpr_t
   | typeexpr_array : typeexpr_t -> expr_t -> typeexpr_t
   | typeexpr_unspec_array : typeexpr_t -> typeexpr_t
   | typeexpr_function : funtypeexpr_t -> typeexpr_t
@@ -459,6 +635,8 @@ with expr_t : Set :=
     forall (structure : expr_t) (member : idexpr_t), expr_t
   | expr_memarrow :
     forall (structure : expr_t) (member : idexpr_t), expr_t
+  | expr_throw :
+    forall (expr : expr_t), expr_t
 
 with callargs_t : Set :=
   | callargs_nil : callargs_t
@@ -523,6 +701,7 @@ Module expr_prec.
     | unop : t
     | binop : t
     | member_l : t
+    | assignment : t
   .
 
   Definition need_wrap (inner_prec : t) (outer_prec : t) : bool :=
@@ -565,6 +744,13 @@ with decl_serialize (this : decl_t) : list token.t :=
       ((token.symbol token_symbol.open_brace) :: nil) ++
       stmts_serialize body ++
       ((token.symbol token_symbol.close_brace) :: nil)
+    | decl_fundef_special ds type id attrs def =>
+      decl_specifiers.to_tokens ds ++
+      funtypeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
+      attr_specifiers.to_tokens attrs ++
+      ((token.symbol token_symbol.assign) :: nil) ++
+      ((special_fundef.to_token def) :: nil) ++
+      ((token.symbol token_symbol.semicolon) :: nil)
     | decl_consdesdecl ds id args attrs =>
       decl_specifiers.to_tokens ds ++
       idexpr_serialize id ++
@@ -572,16 +758,27 @@ with decl_serialize (this : decl_t) : list token.t :=
       ((token.symbol token_symbol.open_paren) :: nil) ++
       funargs_serialize true args ++
       ((token.symbol token_symbol.close_paren) :: nil)
-    | decl_consdesdef ds id args attrs body =>
+    | decl_consdesdef ds id args attrs init body =>
       decl_specifiers.to_tokens ds ++
       idexpr_serialize id ++
       ((token.symbol token_symbol.open_paren) :: nil) ++
       funargs_serialize true args ++
       ((token.symbol token_symbol.close_paren) :: nil) ++
       attr_specifiers.to_tokens attrs ++
+      ctor_initializers_serialize true init ++
       ((token.symbol token_symbol.open_brace) :: nil) ++
       stmts_serialize body ++
       ((token.symbol token_symbol.close_brace) :: nil)
+    | decl_consdesdef_special ds id args attrs def =>
+      decl_specifiers.to_tokens ds ++
+      idexpr_serialize id ++
+      ((token.symbol token_symbol.open_paren) :: nil) ++
+      funargs_serialize true args ++
+      ((token.symbol token_symbol.close_paren) :: nil) ++
+      attr_specifiers.to_tokens attrs ++
+      ((token.symbol token_symbol.assign) :: nil) ++
+      ((special_fundef.to_token def) :: nil) ++
+      ((token.symbol token_symbol.semicolon) :: nil)
     | decl_class_fwd id =>
       ((token.keyword token_keyword.kw_class) :: nil) ++
       idexpr_serialize id ++
@@ -644,9 +841,30 @@ with clsinherit_serialize (this : clsinherit_t) : list token.t :=
       idexpr_serialize base
   end
 
+with ctor_initializers_serialize (first : bool) (this : ctor_initializers_t) : list token.t :=
+  match this with
+    | ctor_initializers_nil => nil
+    | ctor_initializers_cons init inits =>
+      (
+        if first then
+          (token.symbol token_symbol.colon)
+        else
+          (token.symbol token_symbol.comma)
+      ) :: nil ++
+      ctor_initializer_serialize init ++
+      ctor_initializers_serialize false inits
+  end
+
+with ctor_initializer_serialize (this : ctor_initializer_t) : list token.t :=
+  let (id, expr) := this in
+  idexpr_serialize id ++
+  (token.symbol token_symbol.open_paren) :: nil ++
+  expr_serialize expr_prec.none expr ++
+  (token.symbol token_symbol.close_paren) :: nil
+
 with idexpr_serialize (this : idexpr_t) : list token.t :=
   match this with
-    | idexpr_id scope id => 
+    | idexpr_id scope id =>
       scope_serialize scope ++
       simple_id_serialize id
     | idexpr_destructor scope id =>
@@ -656,6 +874,10 @@ with idexpr_serialize (this : idexpr_t) : list token.t :=
     | idexpr_template scope tplid =>
       scope_serialize scope ++
       templateid_serialize tplid
+    | idexpr_operator scope op =>
+      scope_serialize scope ++
+      token.keyword token_keyword.kw_operator ::
+      (overloadable_operator.to_tokens op)
   end
 
 with scope_serialize (this : scope_t) : list token.t :=
@@ -751,6 +973,9 @@ with typeexpr_serialize
       typeexpr_serialize inner typeexpr_prec.left_assoc skip_head type
     | typeexpr_reference type =>
       let inner := ((token.symbol token_symbol.amp) :: nil) ++ inner in
+      typeexpr_serialize inner typeexpr_prec.left_assoc skip_head type
+    | typeexpr_rvaluereference type =>
+      let inner := ((token.symbol token_symbol.double_amp) :: nil) ++ inner in
       typeexpr_serialize inner typeexpr_prec.left_assoc skip_head type
     | typeexpr_array type expr =>
       let inner := typeexpr_prec.maybe_wrap inner_prec typeexpr_prec.right_assoc inner in
@@ -922,6 +1147,9 @@ with expr_serialize (outer_prec : expr_prec.t) (this : expr_t) : list token.t :=
       expr_serialize expr_prec.member_l structure ++
       ((token.symbol token_symbol.arrow) :: nil) ++
       idexpr_serialize member
+    | expr_throw expr =>
+      ((token.keyword token_keyword.kw_throw) :: nil) ++
+      expr_serialize expr_prec.assignment expr
   end
 
 with callargs_serialize (first : bool) (this : callargs_t) : list token.t :=
