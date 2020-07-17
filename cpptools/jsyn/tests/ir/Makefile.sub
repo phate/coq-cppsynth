@@ -1,2 +1,3 @@
 TESTS += \
 	ir/test-fcttype \
+	ir/test-lambda \
