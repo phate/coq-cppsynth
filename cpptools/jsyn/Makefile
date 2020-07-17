@@ -26,11 +26,16 @@ convert: LDFLAGS += -L. -ljsyn
 convert: convert.cc libjsyn.a
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
 
+.PHONY: doc
+doc: doxygen.conf
+	doxygen $^
+
 clean:
 	find -name "*.la" | xargs rm -f
 	rm -f check.log passed.log failed.log
 	rm -f tests/test-runner
 	rm -f libjsyn.a
 	rm -f convert
+	rm -rf doc
 
 .PHONY: clean
