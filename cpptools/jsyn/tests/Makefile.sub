@@ -1,5 +1,6 @@
 TEST_SOURCES = \
 	tests/registry.cc \
+	tests/testnodes.cc \
 	tests/testtypes.cc \
 	tests/test-runner.cc \
 	$(patsubst %, tests/%.cc, $(TESTS))
