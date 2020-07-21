@@ -2,6 +2,7 @@ LIBJSYN_SRC = \
 	src/sexpr.cc \
 	\
 	src/ir/lambda.cc \
+	src/ir/phi.cc \
 	src/ir/types.cc \
 	\
 	src/util/exception.cc \
