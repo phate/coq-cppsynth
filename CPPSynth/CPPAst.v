@@ -155,6 +155,11 @@ Module token_keyword.
     | kw_delete : t
     | kw_new : t
     | kw_operator : t
+    | kw_do : t
+    | kw_while : t
+    | kw_switch : t
+    | kw_case : t
+    | kw_bool : t
   .
 
   Definition to_string (this : t) : String.string :=
@@ -198,6 +203,11 @@ Module token_keyword.
       | kw_delete => "delete"
       | kw_new => "new"
       | kw_operator => "operator"
+      | kw_do => "do"
+      | kw_while => "while"
+      | kw_switch => "switch"
+      | kw_case => "case"
+      | kw_bool => "bool"
     end.
 
 End token_keyword.
@@ -327,6 +337,7 @@ Module primtype.
   Inductive t : Set :=
     | void
     | auto
+    | bool
     | char
     | unsigned_char
     | signed_char
@@ -337,6 +348,7 @@ Module primtype.
     match type with
       | void => (token.keyword token_keyword.kw_void) :: nil
       | auto => (token.keyword token_keyword.kw_auto) :: nil
+      | bool => (token.keyword token_keyword.kw_bool) :: nil
       | char => (token.keyword token_keyword.kw_char) :: nil
       | unsigned_char => (token.keyword token_keyword.kw_unsigned) :: (token.keyword token_keyword.kw_char) :: nil
       | signed_char => (token.keyword token_keyword.kw_signed) :: (token.keyword token_keyword.kw_char) :: nil
@@ -359,85 +371,158 @@ Module visibility_spec.
     end.
 End visibility_spec.
 
-Module decl_specifier.
+Module declspec.
   Inductive t : Set :=
-    | ds_register : t
-    | ds_static : t
-    | ds_thread_local : t
-    | ds_extern : t
-    | ds_mutable : t
-    | ds_inline : t
-    | ds_virtual : t
-    | ds_explicit : t
-    | ds_friend : t
-    | ds_constexpr : t
-  .
+    | make :
+      forall (is_register : bool),
+      forall (is_static : bool),
+      forall (is_thread_local : bool),
+      forall (is_extern : bool),
+      forall (is_mutable : bool),
+      forall (is_inline : bool),
+      forall (is_virtual : bool),
+      forall (is_explicit : bool),
+      forall (is_friend : bool),
+      forall (is_constexpr : bool),
+      t.
+
+  Definition none : t := make false false false false false false false false false false.
+
+  Definition set_register (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make true is_static is_thread_local is_extern is_mutable is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition set_static (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register true is_thread_local is_extern is_mutable is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition set_thread_local (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static true is_extern is_mutable is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition set_extern (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local true is_mutable is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition set_mutable (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern true is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition set_inline  (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable true is_virtual is_explicit is_friend is_constexpr.
+  Definition set_virtual (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable is_inline true is_explicit is_friend is_constexpr.
+  Definition set_explicit (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable is_inline is_virtual true is_friend is_constexpr.
+  Definition set_friend (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable is_inline is_virtual is_explicit true is_constexpr.
+  Definition set_constexpr (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable is_inline is_virtual is_explicit is_friend true.
+
+  Definition clear_register (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make false is_static is_thread_local is_extern is_mutable is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition clear_static (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register false is_thread_local is_extern is_mutable is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition clear_thread_local (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static false is_extern is_mutable is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition clear_extern (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local false is_mutable is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition clear_mutable (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern false is_inline is_virtual is_explicit is_friend is_constexpr.
+  Definition clear_inline  (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable false is_virtual is_explicit is_friend is_constexpr.
+  Definition clear_virtual (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable is_inline false is_explicit is_friend is_constexpr.
+  Definition clear_explicit (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable is_inline is_virtual false is_friend is_constexpr.
+  Definition clear_friend (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable is_inline is_virtual is_explicit false is_constexpr.
+  Definition clear_constexpr (this : t) : t :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    make is_register is_static is_thread_local is_extern is_mutable is_inline is_virtual is_explicit is_friend false.
+
+  Definition is_register (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_register.
+  Definition is_static (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_static.
+  Definition is_thread_local (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_thread_local.
+  Definition is_extern (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_extern.
+  Definition is_mutable (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_mutable.
+  Definition is_inline (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_inline.
+  Definition is_virtual (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_virtual.
+  Definition is_explicit (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_explicit.
+  Definition is_friend (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_friend.
+  Definition is_constexpr (this : t) : bool :=
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    is_constexpr.
+
+  Definition maybe_keyword (use : bool) (kw : token_keyword.t) : list token.t :=
+    if use then
+      token.keyword kw :: nil
+    else nil.
 
   Definition to_tokens (this : t) : list token.t :=
-    match this with
-      | ds_register => (token.keyword token_keyword.kw_register) :: nil
-      | ds_static => (token.keyword token_keyword.kw_static) :: nil
-      | ds_thread_local => (token.keyword token_keyword.kw_thread_local) :: nil
-      | ds_extern => (token.keyword token_keyword.kw_extern) :: nil
-      | ds_mutable => (token.keyword token_keyword.kw_mutable) :: nil
-      | ds_inline => (token.keyword token_keyword.kw_inline) :: nil
-      | ds_virtual => (token.keyword token_keyword.kw_virtual) :: nil
-      | ds_explicit => (token.keyword token_keyword.kw_explicit) :: nil
-      | ds_friend => (token.keyword token_keyword.kw_friend) :: nil
-      | ds_constexpr => (token.keyword token_keyword.kw_constexpr) :: nil
-    end.
-End decl_specifier.
+    let (is_register, is_static, is_thread_local, is_extern, is_mutable, is_inline, is_virtual, is_explicit, is_friend, is_constexpr) := this in
+    maybe_keyword is_register token_keyword.kw_register ++
+    maybe_keyword is_static token_keyword.kw_static ++
+    maybe_keyword is_thread_local token_keyword.kw_thread_local ++
+    maybe_keyword is_extern token_keyword.kw_extern ++
+    maybe_keyword is_mutable token_keyword.kw_mutable ++
+    maybe_keyword is_inline token_keyword.kw_inline ++
+    maybe_keyword is_virtual token_keyword.kw_virtual ++
+    maybe_keyword is_explicit token_keyword.kw_explicit ++
+    maybe_keyword is_friend token_keyword.kw_friend ++
+    maybe_keyword is_constexpr token_keyword.kw_constexpr.
 
-Module decl_specifiers.
-  Definition t := list decl_specifier.t.
+End declspec.
 
-  Definition to_tokens (this : t) : list token.t :=
-    let result := nil in
-    fold_left (fun result ds => result ++ (decl_specifier.to_tokens ds)) this result.
-End decl_specifiers.
-
-Module attr_specifier.
+Module attrspec.
   Inductive t : Set :=
-    | as_override : t
-    | as_noexcept : t.
+    | make :
+      forall (is_override : bool),
+      t.
+  Definition none := make false.
+  Definition set_override (this : t) :=
+    make true.
   Definition to_tokens (this : t) : list token.t :=
-    match this with
-      | as_override => (token.keyword token_keyword.kw_override) :: nil
-      | as_noexcept => (token.keyword token_keyword.kw_noexcept) :: nil
-    end.
-End attr_specifier.
-
-Module attr_specifiers.
-  Definition t := list attr_specifier.t.
-
-  Definition to_tokens (this : t) : list token.t :=
-    let result := nil in
-    fold_left (fun result ds => result ++ (attr_specifier.to_tokens ds)) this result.
-End attr_specifiers.
-
-Module special_fundef.
-  Inductive t : Set :=
-    | def_pure : t
-    | def_default : t
-    | def_delete : t.
-
-  Definition to_token (this : t) : token.t :=
-    match this with
-      | def_pure => token.literal (literal.decimal 0)
-      | def_default => token.keyword token_keyword.kw_default
-      | def_delete => token.keyword token_keyword.kw_delete
-    end.
-
-End special_fundef.
+    let (is_override) := this in
+    if is_override then
+      token.keyword token_keyword.kw_override :: nil
+    else
+      nil.
+End attrspec.
 
 Module overloadable_operator.
   Inductive t : Set :=
     | unary : forall (op : unop.t), t
     | binary : forall (op : binop.t), t
     | call : t
-    | dereference : t
     | arrow : t
-    | address_of : t
   .
 
   Definition to_tokens (this : t) : list token.t :=
@@ -447,21 +532,49 @@ Module overloadable_operator.
       | binary op =>
         token.symbol (binop.to_symbol op) :: nil
       | call =>
-        token.symbol token_symbol.open_paren :: 
+        token.symbol token_symbol.open_paren ::
         token.symbol token_symbol.close_paren ::
         nil
-      | dereference =>
-        token.symbol token_symbol.star :: 
-        nil
       | arrow =>
-        token.symbol token_symbol.arrow :: 
-        nil
-      | address_of =>
-        token.symbol token_symbol.amp :: 
+        token.symbol token_symbol.arrow ::
         nil
     end.
-
 End overloadable_operator.
+
+Module fnqual.
+  Inductive t : Set :=
+    | make :
+      forall (is_const : bool),
+      forall (is_volatile : bool),
+      forall (is_noexcept : bool),
+      t.
+
+  Definition none : t := make false false false.
+  Definition set_const (this : t) :=
+    let (is_const, is_volatile, is_noexcept) := this in
+    make true is_volatile is_noexcept.
+  Definition set_volatile (this : t) :=
+    let (is_const, is_volatile, is_noexcept) := this in
+    make is_const true is_noexcept.
+  Definition set_noexcept (this : t) :=
+    let (is_const, is_volatile, is_noexcept) := this in
+    make is_const is_volatile true.
+
+  Definition to_tokens (this : t) : list token.t :=
+    let (is_const, is_volatile, is_noexcept) := this in
+    (if is_const then
+      token.keyword token_keyword.kw_const :: nil
+    else
+      nil) ++
+    (if is_volatile then
+      token.keyword token_keyword.kw_volatile :: nil
+    else
+      nil) ++
+    (if is_noexcept then
+      token.keyword token_keyword.kw_noexcept :: nil
+    else
+      nil).
+End fnqual.
 
 (* declarators, namespace / class level *)
 Inductive decls_t : Set :=
@@ -471,25 +584,53 @@ Inductive decls_t : Set :=
 (* note: much more restrictive than what C++ allows, one declarator per block etc. *)
 with decl_t : Set :=
   | decl_simple : (* covers function and variable declarations *)
-    forall (ds : decl_specifiers.t) (type : typeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t), decl_t
+    forall (ds : declspec.t),
+    forall (type : typeexpr_t),
+    forall (id : idexpr_t),
+    forall (attrs : attrspec.t),
+    decl_t
   | decl_initdef : (* covers definition via assignment initialization *)
-    forall (ds : decl_specifiers.t) (type : typeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (value : expr_t), decl_t
+    forall (ds : declspec.t),
+    forall (type : typeexpr_t),
+    forall (id : idexpr_t),
+    forall (attrs : attrspec.t),
+    forall (value : expr_t),
+    decl_t
   | decl_fundef : (* strict function definitions *)
-    forall (ds : decl_specifiers.t) (type : funtypeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (body : stmts_t), decl_t
-  | decl_fundef_special : (* special function definitions *)
-    forall (ds : decl_specifiers.t) (type : funtypeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (def : special_fundef.t), decl_t
+    forall (ds : declspec.t),
+    forall (type : funtypeexpr_t),
+    forall (id : idexpr_t),
+    forall (attrs : attrspec.t),
+    forall (body : funbody_t),
+    decl_t
   | decl_consdesdecl : (* constructor and destructor declarations *)
-    forall (ds : decl_specifiers.t) (id : idexpr_t) (args : funargs_t) (attrs : attr_specifiers.t), decl_t
+    forall (ds : declspec.t),
+    forall (id : idexpr_t),
+    forall (args : funargs_t),
+    forall (qual : fnqual.t),
+    forall (attrs : attrspec.t),
+    decl_t
   | decl_consdesdef : (* constructor and destructor definitions *)
-    forall (ds : decl_specifiers.t) (id : idexpr_t) (args : funargs_t) (attrs : attr_specifiers.t) (init : ctor_initializers_t) (body : stmts_t), decl_t
-  | decl_consdesdef_special : (* constructor and destructor definitions *)
-    forall (ds : decl_specifiers.t) (id : idexpr_t) (args : funargs_t) (attrs : attr_specifiers.t) (def : special_fundef.t), decl_t
+    forall (ds : declspec.t),
+    forall (id : idexpr_t),
+    forall (args : funargs_t),
+    forall (qual : fnqual.t),
+    forall (attrs : attrspec.t),
+    forall (body : funbody_t),
+    decl_t
   | decl_class_fwd :
-    forall (id : idexpr_t), decl_t
+    forall (id : idexpr_t),
+    decl_t
   | decl_class :
-    forall (id : idexpr_t) (is_final : bool) (inherits : clsinherits_t) (body : clsdecls_t), decl_t
+    forall (id : idexpr_t),
+    forall (is_final : bool),
+    forall (inherits : clsinherits_t),
+    forall (body : clsdecls_t),
+    decl_t
   | decl_templated : (* template any of the above -- should not template templates *)
-    forall (args : tplformargs_t) (decl : decl_t), decl_t
+    forall (args : tplformargs_t),
+    forall (decl : decl_t),
+    decl_t
 
 with clsdecls_t : Set :=
   | clsdecls_nil : clsdecls_t
@@ -497,40 +638,78 @@ with clsdecls_t : Set :=
 
 with clsdecl_t : Set :=
   | clsdecl_group :
-    forall (visibility : visibility_spec.t) (decls : decls_t), clsdecl_t
+    forall (visibility : visibility_spec.t),
+    forall (decls : decls_t),
+    clsdecl_t
 
 with clsinherits_t : Set :=
   | clsinherits_nil : clsinherits_t
   | clsinherits_cons : clsinherit_t -> clsinherits_t -> clsinherits_t
 
 with clsinherit_t : Set :=
-  | clsinherit :
-    forall (is_virtual : bool) (visibility : visibility_spec.t) (base : idexpr_t),
+  | clsinherit_single :
+    forall (is_virtual : bool),
+    forall (visibility : visibility_spec.t),
+    forall (base : idexpr_t),
     clsinherit_t
 
-with ctor_initializers_t : Set :=
-  | ctor_initializers_nil : ctor_initializers_t
-  | ctor_initializers_cons : ctor_initializer_t -> ctor_initializers_t -> ctor_initializers_t
+with funbody_t : Set :=
+  | funbody_abstract :
+    funbody_t
+  | funbody_default :
+    funbody_t
+  | funbody_delete :
+    funbody_t
+  | funbody_stmts :
+    forall (init : cinits_t),
+    forall (stmts : stmts_t),
+    funbody_t
 
-with ctor_initializer_t : Set :=
-  | ctor_initializer :
-    forall (id : idexpr_t) (expr : expr_t), ctor_initializer_t
+with cinits_t : Set :=
+  | cinits_nil : cinits_t
+  | cinits_cons : cinit_t -> cinits_t -> cinits_t
+
+with cinit_t : Set :=
+  | cinit_make :
+    forall (id : idexpr_t),
+    forall (expr : expr_t),
+    cinit_t
 
 (* expression for an id -- needs to include namespace and template-ids, then *)
 with idexpr_t : Set :=
-  | idexpr_id : scope_t -> string -> idexpr_t
-  | idexpr_destructor : scope_t -> string -> idexpr_t
-  | idexpr_template : scope_t -> templateid_t -> idexpr_t
-  | idexpr_operator : scope_t -> overloadable_operator.t -> idexpr_t
+  | idexpr_id :
+    forall (scope : scope_t),
+    forall (id : string),
+    idexpr_t
+  | idexpr_destructor :
+    forall (scope : scope_t),
+    forall (id : string),
+    idexpr_t
+  | idexpr_template :
+    forall (scope : scope_t),
+    forall (tpl : templateid_t),
+    idexpr_t
+  | idexpr_operator :
+    forall (scope : scope_t),
+    forall (op : overloadable_operator.t),
+    idexpr_t
 
 with scope_t : Set :=
   | scope_none : scope_t
-  | scope_id : string -> scope_t -> scope_t
-  | scope_template : templateid_t -> scope_t -> scope_t
+  | scope_id :
+    forall (id : string),
+    forall (sub_scope : scope_t),
+    scope_t
+  | scope_template :
+    forall (tpl : templateid_t),
+    forall (sub_scope : scope_t),
+    scope_t
 
 with templateid_t : Set :=
-  | templateid :
-    forall (name : string) (args : tplargs_t), templateid_t
+  | templateid_make :
+    forall (name : string),
+    forall (args : tplargs_t),
+    templateid_t
 
 (* template formal arguments *)
 with tplformargs_t : Set :=
@@ -538,8 +717,13 @@ with tplformargs_t : Set :=
   | tplformargs_cons : tplformarg_t -> tplformargs_t -> tplformargs_t
 
 with tplformarg_t : Set :=
-  | tplformarg_typename : string -> tplformarg_t
-  | tplformarg_value : typeexpr_t -> string -> tplformarg_t
+  | tplformarg_typename :
+    forall (id : string),
+    tplformarg_t
+  | tplformarg_value :
+    forall (type : typeexpr_t),
+    forall (id : string),
+    tplformarg_t
 
 (* template actual arguments *)
 
@@ -549,27 +733,56 @@ with tplargs_t : Set :=
 
 with tplarg_t : Set :=
   | tplarg_type :
-    forall (type : typeexpr_t), tplarg_t
+    forall (type : typeexpr_t),
+    tplarg_t
   | tplarg_expr :
-    forall (expr : expr_t), tplarg_t
+    forall (expr : expr_t),
+    tplarg_t
 
 (* terms representing types *)
 with typeexpr_t : Set :=
-  | typeexpr_primitive : primtype.t -> typeexpr_t
-  | typeexpr_id : idexpr_t -> typeexpr_t
-  | typeexpr_const : typeexpr_t -> typeexpr_t
-  | typeexpr_volatile : typeexpr_t -> typeexpr_t
-  | typeexpr_pointer : typeexpr_t -> typeexpr_t
-  | typeexpr_reference : typeexpr_t -> typeexpr_t
-  | typeexpr_rvaluereference : typeexpr_t -> typeexpr_t
-  | typeexpr_array : typeexpr_t -> expr_t -> typeexpr_t
-  | typeexpr_unspec_array : typeexpr_t -> typeexpr_t
-  | typeexpr_function : funtypeexpr_t -> typeexpr_t
-  | typeexpr_decltype : expr_t -> typeexpr_t
+  | typeexpr_primitive :
+    forall (prim : primtype.t),
+    typeexpr_t
+  | typeexpr_id :
+    forall (id : idexpr_t),
+    typeexpr_t
+  | typeexpr_const :
+    forall (type : typeexpr_t),
+    typeexpr_t
+  | typeexpr_volatile :
+    forall (type : typeexpr_t),
+    typeexpr_t
+  | typeexpr_pointer :
+    forall (type : typeexpr_t),
+    typeexpr_t
+  | typeexpr_reference :
+    forall (type : typeexpr_t),
+    typeexpr_t
+  | typeexpr_rvaluereference :
+    forall (type : typeexpr_t),
+    typeexpr_t
+  | typeexpr_array :
+    forall (type : typeexpr_t),
+    forall (size : expr_t),
+    typeexpr_t
+  | typeexpr_unspec_array :
+    forall (type : typeexpr_t),
+    typeexpr_t
+  | typeexpr_function :
+    forall (type : funtypeexpr_t),
+    typeexpr_t
+  | typeexpr_decltype :
+    forall (expr : expr_t),
+    typeexpr_t
 
 with funtypeexpr_t : Set :=
-  | funtypeexpr :
-    forall (ret_type : typeexpr_t) (args : funargs_t) (postfix : bool), funtypeexpr_t
+  | funtypeexpr_make :
+    forall (ret_type : typeexpr_t),
+    forall (args : funargs_t),
+    forall (q : fnqual.t),
+    forall (postfix_form : bool),
+    funtypeexpr_t
 
 with funargs_t : Set :=
   | funargs_nil : funargs_t
@@ -577,9 +790,12 @@ with funargs_t : Set :=
 
 with funarg_t : Set :=
   | funarg_named :
-    forall (type : typeexpr_t) (name : String.string), funarg_t
+    forall (type : typeexpr_t),
+    forall (name : String.string),
+    funarg_t
   | funarg_anon :
-    forall (type : typeexpr_t), funarg_t
+    forall (type : typeexpr_t),
+    funarg_t
 
 (* Statements (function-level) *)
 
@@ -589,15 +805,43 @@ with stmts_t : Set :=
 
 with stmt_t : Set :=
   | stmt_decl :
-    forall (decl : decl_t), stmt_t
+    forall (decl : decl_t),
+    stmt_t
   | stmt_expr :
-    forall (expr : expr_t), stmt_t
+    forall (expr : expr_t),
+    stmt_t
   | stmt_block :
-    forall (body : stmts_t), stmt_t
+    forall (body : stmts_t),
+    stmt_t
   | stmt_if :
-    forall (cond : condition_t) (then_body : stmt_t), stmt_t
+    forall (cond : condition_t),
+    forall (then_body : stmt_t),
+    stmt_t
   | stmt_ifelse :
-    forall (cond : condition_t) (then_body : stmt_t) (else_body : stmt_t), stmt_t
+    forall (cond : condition_t),
+    forall (then_body : stmt_t),
+    forall (else_body : stmt_t),
+    stmt_t
+  | stmt_while :
+    forall (cond : condition_t),
+    forall (body : stmt_t),
+    stmt_t
+  | stmt_do_while :
+    forall (body : stmt_t),
+    forall (cond : condition_t),
+    stmt_t
+  | stmt_for :
+    forall (init : condition_t),
+    forall (cond : condition_t),
+    forall (cont : expr_t),
+    forall (body : stmt_t),
+    stmt_t
+  | stmt_for_range :
+    forall (type : typeexpr_t),
+    forall (id : idexpr_t),
+    forall (range : expr_t),
+    forall (body : stmt_t),
+    stmt_t
   | stmt_return :
     forall (expr : expr_t), stmt_t
 
@@ -606,7 +850,12 @@ with condition_t : Set :=
     forall (e : expr_t), condition_t
   | condition_decl :
     (* this is the same as decl_initdef -- maybe merge? *)
-    forall (ds : decl_specifiers.t) (type : typeexpr_t) (id : idexpr_t) (attrs : attr_specifiers.t) (value : expr_t), condition_t
+    forall (ds : declspec.t),
+    forall (type : typeexpr_t),
+    forall (id : idexpr_t),
+    forall (attrs : attrspec.t),
+    forall (value : expr_t),
+    condition_t
 
 (* expressions *)
 
@@ -649,9 +898,39 @@ with binders_t : Set :=
 with binder_t : Set :=
   | binder_allcopy : binder_t
   | binder_allref : binder_t
-  | binder_copy : String.string -> binder_t
-  | binder_ref : String.string -> binder_t
-  | binder_generic : String.string -> expr_t -> binder_t.
+  | binder_copy :
+    forall (id : String.string),
+    binder_t
+  | binder_ref :
+    forall (id : String.string),
+    binder_t
+  | binder_generic :
+    forall (id : String.string),
+    forall (expr : expr_t),
+    binder_t.
+
+Definition funbody_is_stmts (this : funbody_t) : bool :=
+  match this with
+    | funbody_stmts _ _ => true
+    | _ => false
+  end.
+
+Definition tplformarg_to_tplarg (this : tplformarg_t) : tplarg_t :=
+  match this with
+    | tplformarg_typename id =>
+      tplarg_type (typeexpr_id (idexpr_id scope_none id))
+    | tplformarg_value type id =>
+      tplarg_expr (expr_id (idexpr_id scope_none id))
+  end.
+
+Fixpoint tplformargs_to_tplargs (this : tplformargs_t ) : tplargs_t :=
+  match this with
+    | tplformargs_nil => tplargs_nil
+    | tplformargs_cons arg args =>
+      tplargs_cons (tplformarg_to_tplarg arg) (tplformargs_to_tplargs args)
+  end.
+
+(* template actual arguments *)
 
 Definition simple_id_serialize (id : string) : list token.t :=
   (token.identifier id) :: nil.
@@ -713,9 +992,6 @@ Module expr_prec.
     else tokens.
 End expr_prec.
 
-(* XXX: placeholders *)
-Fixpoint binders_serialize (this : binders_t) : list token.t := nil.
-
 Fixpoint decls_serialize (this : decls_t) : list token.t :=
   match this with
     | decls_nil => nil
@@ -726,59 +1002,41 @@ Fixpoint decls_serialize (this : decls_t) : list token.t :=
 with decl_serialize (this : decl_t) : list token.t :=
   match this with
     | decl_simple ds type id attrs =>
-      decl_specifiers.to_tokens ds ++
+      declspec.to_tokens ds ++
       typeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
-      attr_specifiers.to_tokens attrs ++
+      attrspec.to_tokens attrs ++
       ((token.symbol token_symbol.semicolon) :: nil)
     | decl_initdef ds type id attrs value =>
-      decl_specifiers.to_tokens ds ++
+      declspec.to_tokens ds ++
       typeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
-      attr_specifiers.to_tokens attrs ++
+      attrspec.to_tokens attrs ++
       ((token.symbol token_symbol.assign) :: nil) ++
       expr_serialize expr_prec.none value ++
       ((token.symbol token_symbol.semicolon) :: nil)
     | decl_fundef ds type id attrs body =>
-      decl_specifiers.to_tokens ds ++
+      declspec.to_tokens ds ++
       funtypeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
-      attr_specifiers.to_tokens attrs ++
-      ((token.symbol token_symbol.open_brace) :: nil) ++
-      stmts_serialize body ++
-      ((token.symbol token_symbol.close_brace) :: nil)
-    | decl_fundef_special ds type id attrs def =>
-      decl_specifiers.to_tokens ds ++
-      funtypeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
-      attr_specifiers.to_tokens attrs ++
-      ((token.symbol token_symbol.assign) :: nil) ++
-      ((special_fundef.to_token def) :: nil) ++
-      ((token.symbol token_symbol.semicolon) :: nil)
-    | decl_consdesdecl ds id args attrs =>
-      decl_specifiers.to_tokens ds ++
+      attrspec.to_tokens attrs ++
+      funbody_serialize body
+    | decl_consdesdecl ds id args qual attrs =>
+      declspec.to_tokens ds ++
       idexpr_serialize id ++
-      attr_specifiers.to_tokens attrs ++
+      attrspec.to_tokens attrs ++
       ((token.symbol token_symbol.open_paren) :: nil) ++
       funargs_serialize true args ++
-      ((token.symbol token_symbol.close_paren) :: nil)
-    | decl_consdesdef ds id args attrs init body =>
-      decl_specifiers.to_tokens ds ++
+      ((token.symbol token_symbol.close_paren) :: nil) ++
+      fnqual.to_tokens qual ++
+      attrspec.to_tokens attrs ++
+      ((token.symbol token_symbol.semicolon) :: nil)
+    | decl_consdesdef ds id args qual attrs body =>
+      declspec.to_tokens ds ++
       idexpr_serialize id ++
       ((token.symbol token_symbol.open_paren) :: nil) ++
       funargs_serialize true args ++
       ((token.symbol token_symbol.close_paren) :: nil) ++
-      attr_specifiers.to_tokens attrs ++
-      ctor_initializers_serialize true init ++
-      ((token.symbol token_symbol.open_brace) :: nil) ++
-      stmts_serialize body ++
-      ((token.symbol token_symbol.close_brace) :: nil)
-    | decl_consdesdef_special ds id args attrs def =>
-      decl_specifiers.to_tokens ds ++
-      idexpr_serialize id ++
-      ((token.symbol token_symbol.open_paren) :: nil) ++
-      funargs_serialize true args ++
-      ((token.symbol token_symbol.close_paren) :: nil) ++
-      attr_specifiers.to_tokens attrs ++
-      ((token.symbol token_symbol.assign) :: nil) ++
-      ((special_fundef.to_token def) :: nil) ++
-      ((token.symbol token_symbol.semicolon) :: nil)
+      fnqual.to_tokens qual ++
+      attrspec.to_tokens attrs ++
+      funbody_serialize body
     | decl_class_fwd id =>
       ((token.keyword token_keyword.kw_class) :: nil) ++
       idexpr_serialize id ++
@@ -832,7 +1090,7 @@ with clsinherits_serialize (first : bool) (this : clsinherits_t) : list token.t 
 
 with clsinherit_serialize (this : clsinherit_t) : list token.t :=
   match this with
-    | clsinherit is_virtual visibility base =>
+    | clsinherit_single is_virtual visibility base =>
       (if is_virtual then
         (token.keyword token_keyword.kw_virtual) :: nil
       else
@@ -841,21 +1099,45 @@ with clsinherit_serialize (this : clsinherit_t) : list token.t :=
       idexpr_serialize base
   end
 
-with ctor_initializers_serialize (first : bool) (this : ctor_initializers_t) : list token.t :=
+with funbody_serialize (this : funbody_t) : list token.t :=
   match this with
-    | ctor_initializers_nil => nil
-    | ctor_initializers_cons init inits =>
+    | funbody_abstract =>
+      token.symbol token_symbol.assign ::
+      token.literal (literal.decimal 0) ::
+      token.symbol token_symbol.semicolon ::
+      nil
+    | funbody_default =>
+      token.symbol token_symbol.assign ::
+      token.keyword token_keyword.kw_default ::
+      token.symbol token_symbol.semicolon ::
+      nil
+    | funbody_delete =>
+      token.symbol token_symbol.assign ::
+      token.keyword token_keyword.kw_delete ::
+      token.symbol token_symbol.semicolon ::
+      nil
+    | funbody_stmts init stmts =>
+      cinits_serialize true init ++
+      token.symbol token_symbol.open_brace :: nil ++
+      stmts_serialize stmts ++
+      token.symbol token_symbol.close_brace :: nil
+  end
+
+with cinits_serialize (first : bool) (this : cinits_t) : list token.t :=
+  match this with
+    | cinits_nil => nil
+    | cinits_cons init inits =>
       (
         if first then
           (token.symbol token_symbol.colon)
         else
           (token.symbol token_symbol.comma)
       ) :: nil ++
-      ctor_initializer_serialize init ++
-      ctor_initializers_serialize false inits
+      cinit_serialize init ++
+      cinits_serialize false inits
   end
 
-with ctor_initializer_serialize (this : ctor_initializer_t) : list token.t :=
+with cinit_serialize (this : cinit_t) : list token.t :=
   let (id, expr) := this in
   idexpr_serialize id ++
   (token.symbol token_symbol.open_paren) :: nil ++
@@ -895,7 +1177,7 @@ with scope_serialize (this : scope_t) : list token.t :=
 
 with templateid_serialize (this : templateid_t) : list token.t :=
   match this with
-    | templateid name args =>
+    | templateid_make name args =>
       simple_id_serialize name ++
       ((token.symbol token_symbol.lt) :: nil) ++
       tplargs_serialize true args ++
@@ -1003,7 +1285,7 @@ with funtypeexpr_serialize
     (inner : list token.t)  (inner_prec : typeexpr_prec.t)
     (skip_head : bool) (this : funtypeexpr_t) : list token.t :=
   match this with
-    | funtypeexpr ret_type args postfix =>
+    | funtypeexpr_make ret_type args qual postfix =>
       if postfix then
         let inner := typeexpr_prec.maybe_wrap inner_prec typeexpr_prec.function inner in
         let inner :=
@@ -1015,14 +1297,18 @@ with funtypeexpr_serialize
           ((token.keyword token_keyword.kw_auto) :: nil) ++ inner in
         let post :=
           typeexpr_serialize nil typeexpr_prec.none false ret_type in
-        inner ++ ((token.symbol token_symbol.arrow) :: nil) ++ post
+        inner ++
+        fnqual.to_tokens qual ++
+        ((token.symbol token_symbol.arrow) :: nil) ++
+        post
       else
         let inner := typeexpr_prec.maybe_wrap inner_prec typeexpr_prec.function inner in
         let inner :=
           inner ++
           ((token.symbol token_symbol.open_paren) :: nil) ++
           funargs_serialize true args ++
-          ((token.symbol token_symbol.close_paren) :: nil) in
+          ((token.symbol token_symbol.close_paren) :: nil) ++
+          fnqual.to_tokens qual in
         typeexpr_serialize inner typeexpr_prec.function skip_head ret_type
   end
 
@@ -1076,6 +1362,40 @@ with stmt_serialize (this : stmt_t) : list token.t :=
       stmt_serialize then_body ++
       ((token.keyword token_keyword.kw_else) :: nil) ++
       stmt_serialize else_body
+    | stmt_while cond body =>
+      ((token.keyword token_keyword.kw_while) :: nil) ++
+      ((token.symbol token_symbol.open_paren) :: nil) ++
+      condition_serialize cond ++
+      ((token.symbol token_symbol.close_paren) :: nil) ++
+      stmt_serialize body
+    | stmt_do_while body cond =>
+      ((token.keyword token_keyword.kw_do) :: nil) ++
+      stmt_serialize body ++
+      ((token.keyword token_keyword.kw_while) :: nil) ++
+      ((token.symbol token_symbol.open_paren) :: nil) ++
+      condition_serialize cond ++
+      ((token.symbol token_symbol.close_paren) :: nil)
+    | stmt_for init cond cont body =>
+      ((token.keyword token_keyword.kw_for) :: nil) ++
+      ((token.symbol token_symbol.open_paren) :: nil) ++
+      condition_serialize cond ++
+      ((token.symbol token_symbol.semicolon) :: nil) ++
+      condition_serialize cond ++
+      ((token.symbol token_symbol.semicolon) :: nil) ++
+      expr_serialize expr_prec.none cont ++
+      ((token.symbol token_symbol.close_paren) :: nil) ++
+      stmt_serialize body
+    | stmt_for_range type id range body =>
+      ((token.keyword token_keyword.kw_for) :: nil) ++
+      ((token.symbol token_symbol.open_paren) :: nil) ++
+      typeexpr_serialize
+        (idexpr_serialize id)
+        typeexpr_prec.none false
+        type ++
+      ((token.symbol token_symbol.colon) :: nil) ++
+      expr_serialize expr_prec.none range ++
+      ((token.symbol token_symbol.close_paren) :: nil) ++
+      stmt_serialize body
     | stmt_return expr =>
       ((token.keyword token_keyword.kw_return) :: nil) ++
       expr_serialize expr_prec.none expr ++
@@ -1087,9 +1407,9 @@ with condition_serialize (this : condition_t) : list token.t :=
     | condition_expr expr => expr_serialize expr_prec.none expr
     | condition_decl ds type id attrs value =>
       (* this is a copy of decl_initdef serialization *)
-      decl_specifiers.to_tokens ds ++
+      declspec.to_tokens ds ++
       typeexpr_serialize (idexpr_serialize id) typeexpr_prec.none false type ++
-      attr_specifiers.to_tokens attrs ++
+      attrspec.to_tokens attrs ++
       ((token.symbol token_symbol.assign) :: nil) ++
       expr_serialize expr_prec.none value
   end
@@ -1123,7 +1443,7 @@ with expr_serialize (outer_prec : expr_prec.t) (this : expr_t) : list token.t :=
       ((token.symbol token_symbol.close_paren) :: nil)
     | expr_lambda binders args body =>
       ((token.symbol token_symbol.open_bracket) :: nil) ++
-      binders_serialize binders ++
+      binders_serialize true binders ++
       ((token.symbol token_symbol.close_bracket) :: nil) ++
       ((token.symbol token_symbol.open_paren) :: nil) ++
       funargs_serialize true args ++
@@ -1159,6 +1479,27 @@ with callargs_serialize (first : bool) (this : callargs_t) : list token.t :=
       (if first then nil else ((token.symbol token_symbol.comma) :: nil)) ++
       expr_serialize expr_prec.none arg ++  (* XXX: comma precedence *)
       callargs_serialize false args
+  end
+
+with binders_serialize (first : bool) (this : binders_t) : list token.t :=
+  match this with
+    | binders_nil => nil
+    | binders_cons binder binders =>
+      (if first then nil else ((token.symbol token_symbol.comma) :: nil)) ++
+      binder_serialize binder ++
+      binders_serialize false binders
+  end
+
+with binder_serialize (this : binder_t) : list token.t :=
+  match this with
+    | binder_allcopy => token.symbol token_symbol.eq :: nil
+    | binder_allref => token.symbol token_symbol.amp :: nil
+    | binder_copy id => token.identifier id :: nil
+    | binder_ref id => token.symbol token_symbol.amp :: token.identifier id :: nil
+    | binder_generic id expr =>
+      token.identifier id :: token.symbol token_symbol.open_brace :: nil ++
+      expr_serialize expr_prec.none expr ++
+      token.symbol token_symbol.close_brace :: nil
   end.
 
 Fixpoint make_stmts (stmts : list stmt_t) : stmts_t :=
@@ -1193,27 +1534,29 @@ Fixpoint make_callargs (args : list expr_t) : callargs_t :=
 
 Example ex_decl_array_of_pointers :=
     decl_simple
-      nil
+      declspec.none
       (typeexpr_array (typeexpr_pointer (typeexpr_primitive primtype.int)) (expr_literal (literal.decimal 32)))
       (idexpr_id scope_none "foo")
-      nil.
+      attrspec.none.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_array_of_pointers)).
 Example ex_decl_pointer_of_array :=
     decl_simple
-      nil
+      declspec.none
       (typeexpr_pointer (typeexpr_array (typeexpr_primitive primtype.int) (expr_literal (literal.decimal 32))))
       (idexpr_id scope_none "foo")
-      nil.
+      attrspec.none.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_pointer_of_array)).
 Example ex_decl_fun :=
     decl_simple
-      nil
+      declspec.none
       (typeexpr_function
-        (funtypeexpr
+        (funtypeexpr_make
           (typeexpr_pointer (typeexpr_primitive primtype.int))
-          (make_funargs (funarg_named (typeexpr_primitive primtype.int) "a" :: funarg_named (typeexpr_primitive primtype.char) "b" :: nil)) false))
+          (make_funargs (funarg_named (typeexpr_primitive primtype.int) "a" :: funarg_named (typeexpr_primitive primtype.char) "b" :: nil))
+          fnqual.none
+          false))
       (idexpr_id scope_none "foo")
-      nil.
+      attrspec.none.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_fun)).
 Example ex_decl_class :=
     decl_class
@@ -1233,55 +1576,69 @@ Example ex_decl_tpl_class :=
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_tpl_class)).
 Example ex_decl_funptr :=
     decl_simple
-      nil
+      declspec.none
       (typeexpr_pointer (
         (typeexpr_function
-          (funtypeexpr
+          (funtypeexpr_make
             (typeexpr_pointer (typeexpr_primitive primtype.int))
             (funargs_nil)
+            fnqual.none
             false))))
       (idexpr_id scope_none "foo")
-      nil.
+      attrspec.none.
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_funptr)).
 
 Example ex_decl_fundef :=
   decl_fundef
-    nil
-    (funtypeexpr
+    declspec.none
+    (funtypeexpr_make
       (typeexpr_primitive primtype.int)
       (make_funargs (
         funarg_named (typeexpr_primitive primtype.int) "a" ::
         funarg_named (typeexpr_primitive primtype.char) "b" ::
         nil))
+      fnqual.none
       false)
     (idexpr_id scope_none "foo")
-    nil
-    (make_stmts (
-      (stmt_return (expr_literal (literal.decimal 32))) ::
-      nil)
+    attrspec.none
+    (funbody_stmts
+      cinits_nil
+      (make_stmts (
+        (stmt_return (expr_literal (literal.decimal 32))) ::
+        nil)
+      )
     ).
 Eval lazy in (serialize_tokens (decl_serialize ex_decl_fundef)).
 
 Example ex_hello_world_main :=
   decl_fundef
-    nil
-    (funtypeexpr
+    declspec.none
+    (funtypeexpr_make
       (typeexpr_primitive primtype.int)
       (make_funargs (
         funarg_named (typeexpr_primitive primtype.int) "args" ::
         funarg_named (typeexpr_pointer (typeexpr_pointer (typeexpr_primitive primtype.char))) "argv" ::
         nil))
+      fnqual.none
       false)
     (idexpr_id scope_none "main")
-    nil
-    (make_stmts (
-      (stmt_expr
-        (expr_call
-          (expr_id (idexpr_id scope_none "printf"))
-          (make_callargs (
-            expr_literal (literal.str "Hello world!") ::
-            nil)))) ::
-      (stmt_return (expr_literal (literal.decimal 0))) ::
-      nil)
+    attrspec.none
+    (funbody_stmts
+      cinits_nil
+      (make_stmts (
+        (stmt_expr
+          (expr_call
+            (expr_id (idexpr_id scope_none "printf"))
+            (make_callargs (
+              expr_literal (literal.str "Hello world!") ::
+              nil)))) ::
+        (stmt_return (expr_literal (literal.decimal 0))) ::
+        nil)
+      )
     ).
 Eval lazy in (serialize_tokens (decl_serialize ex_hello_world_main)).
+
+
+
+
+
