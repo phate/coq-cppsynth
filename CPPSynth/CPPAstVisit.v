@@ -6,22 +6,14 @@ Module visitor.
   Section Dependent.
     Variable T : Set.
     Record t : Set := make {
-      decls_pre : decls_t -> T -> control * T ;
-      decls_post : decls_t -> T -> decls_t * T ;
       decl_pre : decl_t -> T -> control * T ;
       decl_post : decl_t -> T -> decl_t * T ;
-      clsdecls_pre : clsdecls_t -> T -> control * T ;
-      clsdecls_post : clsdecls_t -> T -> clsdecls_t * T ;
       clsdecl_pre : clsdecl_t -> T -> control * T ;
       clsdecl_post : clsdecl_t -> T -> clsdecl_t * T ;
-      clsinherits_pre : clsinherits_t -> T -> control * T ;
-      clsinherits_post : clsinherits_t -> T -> clsinherits_t * T ;
       clsinherit_pre : clsinherit_t -> T -> control * T ;
       clsinherit_post : clsinherit_t -> T -> clsinherit_t * T ;
       funbody_pre : funbody_t -> T -> control * T ;
       funbody_post : funbody_t -> T -> funbody_t * T ;
-      cinits_pre : cinits_t -> T -> control * T ;
-      cinits_post : cinits_t -> T -> cinits_t * T ;
       cinit_pre : cinit_t -> T -> control * T ;
       cinit_post : cinit_t -> T -> cinit_t * T ;
       idexpr_pre : idexpr_t -> T -> control * T ;
@@ -30,34 +22,22 @@ Module visitor.
       scope_post : scope_t -> T -> scope_t * T ;
       templateid_pre : templateid_t -> T -> control * T ;
       templateid_post : templateid_t -> T -> templateid_t * T ;
-      tplformargs_pre : tplformargs_t -> T -> control * T ;
-      tplformargs_post : tplformargs_t -> T -> tplformargs_t * T ;
       tplformarg_pre : tplformarg_t -> T -> control * T ;
       tplformarg_post : tplformarg_t -> T -> tplformarg_t * T ;
-      tplargs_pre : tplargs_t -> T -> control * T ;
-      tplargs_post : tplargs_t -> T -> tplargs_t * T ;
       tplarg_pre : tplarg_t -> T -> control * T ;
       tplarg_post : tplarg_t -> T -> tplarg_t * T ;
       typeexpr_pre : typeexpr_t -> T -> control * T ;
       typeexpr_post : typeexpr_t -> T -> typeexpr_t * T ;
       funtypeexpr_pre : funtypeexpr_t -> T -> control * T ;
       funtypeexpr_post : funtypeexpr_t -> T -> funtypeexpr_t * T ;
-      funargs_pre : funargs_t -> T -> control * T ;
-      funargs_post : funargs_t -> T -> funargs_t * T ;
       funarg_pre : funarg_t -> T -> control * T ;
       funarg_post : funarg_t -> T -> funarg_t * T ;
-      stmts_pre : stmts_t -> T -> control * T ;
-      stmts_post : stmts_t -> T -> stmts_t * T ;
       stmt_pre : stmt_t -> T -> control * T ;
       stmt_post : stmt_t -> T -> stmt_t * T ;
       condition_pre : condition_t -> T -> control * T ;
       condition_post : condition_t -> T -> condition_t * T ;
       expr_pre : expr_t -> T -> control * T ;
       expr_post : expr_t -> T -> expr_t * T ;
-      callargs_pre : callargs_t -> T -> control * T ;
-      callargs_post : callargs_t -> T -> callargs_t * T ;
-      binders_pre : binders_t -> T -> control * T ;
-      binders_post : binders_t -> T -> binders_t * T ;
       binder_pre : binder_t -> T -> control * T ;
       binder_post : binder_t -> T -> binder_t * T
     }.
