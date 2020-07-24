@@ -815,27 +815,19 @@ Definition idexpr_to_scope (idexpr : idexpr_t) : scope_t :=
       scope (* illegal *)
   end.
 
-(* helper to replace type idexpr with a different type id expr *)
-Module class_replace.
+(* helper to replace all occurrences of one type expr with a different type expr *)
+Module type_replace.
   Inductive t :=
     | make :
-      forall (orig : idexpr_t),
-      forall (replacement : idexpr_t),
+      forall (orig : typeexpr_t),
+      forall (repl : typeexpr_t),
       t.
   Definition typeexpr_post (typeexpr : typeexpr_t) (this : t) : typeexpr_t * t :=
     let (orig, repl) := this in
-    (match typeexpr with
-      | typeexpr_id (idexpr_id scope_none o_id) =>
-        match orig with
-          | idexpr_id scope_none i_id =>
-            if string_dec o_id i_id then typeexpr_id repl else typeexpr
-          | _ => typeexpr
-        end
-      | _ => typeexpr
-    end, this).
+    if typeexpr_eq_dec typeexpr orig then (repl, this) else (typeexpr, this).
   Definition vmt :=
     (visitor.override_typeexpr_post _ typeexpr_post (visitor.vmt t)).
-End class_replace.
+End type_replace.
 
 Definition generate_member_defs
     (tplargs : tplformargs_t) (id : idexpr_t) (decls : clsdecls_t)
@@ -843,9 +835,9 @@ Definition generate_member_defs
   let clsid := idexpr_maybe_template (tplformargs_to_tplargs tplargs) id in
   let scope := idexpr_to_scope clsid in
   let edecls := (clsdecls_extract_member_defs decls) in
-  let cls_replace := class_replace.make id clsid in
+  let replace := type_replace.make (typeexpr_id id) (typeexpr_id clsid) in
   let edecls := map (
-    fun decl => snd (decl_visit _ class_replace.vmt cls_replace decl)) edecls in
+    fun decl => snd (decl_visit _ type_replace.vmt replace decl)) edecls in
   map (maybe_template tplargs) (map (decl_scopify scope) edecls).
 
 Definition generate_stripped_class_def
