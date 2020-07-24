@@ -9,7 +9,7 @@ Require Import
   CPPSynth.Exception
   CPPSynth.Gallina
   CPPSynth.CPPAst
-  CPPSynth.CPPAstTrans
+  CPPSynth.CPPAstVisit
   CPPSynth.Monad.
 
 Module cg.
@@ -815,24 +815,37 @@ Definition idexpr_to_scope (idexpr : idexpr_t) : scope_t :=
       scope (* illegal *)
   end.
 
+(* helper to replace type idexpr with a different type id expr *)
+Module class_replace.
+  Inductive t :=
+    | make :
+      forall (orig : idexpr_t),
+      forall (replacement : idexpr_t),
+      t.
+  Definition typeexpr_post (typeexpr : typeexpr_t) (this : t) : typeexpr_t * t :=
+    let (orig, repl) := this in
+    (match typeexpr with
+      | typeexpr_id (idexpr_id scope_none o_id) =>
+        match orig with
+          | idexpr_id scope_none i_id =>
+            if string_dec o_id i_id then typeexpr_id repl else typeexpr
+          | _ => typeexpr
+        end
+      | _ => typeexpr
+    end, this).
+  Definition vmt :=
+    (visitor.override_typeexpr_post _ typeexpr_post (visitor.vmt t)).
+End class_replace.
+
 Definition generate_member_defs
     (tplargs : tplformargs_t) (id : idexpr_t) (decls : clsdecls_t)
     : list decl_t :=
   let clsid := idexpr_maybe_template (tplformargs_to_tplargs tplargs) id in
   let scope := idexpr_to_scope clsid in
   let edecls := (clsdecls_extract_member_defs decls) in
-  let replace_id_fn :=
-    (fun (o : idexpr_t) =>
-      match o with
-        | idexpr_id scope_none o_id =>
-          match id with
-            | idexpr_id scope_none i_id =>
-              if string_dec o_id i_id then clsid else o
-            | _ => o
-          end
-        | _ => o
-      end) in
-  let edecls := map (decl_replace_idexpr replace_id_fn) edecls in
+  let cls_replace := class_replace.make id clsid in
+  let edecls := map (
+    fun decl => snd (decl_visit _ class_replace.vmt cls_replace decl)) edecls in
   map (maybe_template tplargs) (map (decl_scopify scope) edecls).
 
 Definition generate_stripped_class_def

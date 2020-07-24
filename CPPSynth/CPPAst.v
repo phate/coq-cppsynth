@@ -251,6 +251,10 @@ Module unop.
     | post_dec
   .
 
+  Definition eq_dec : forall (x y : t), {x=y} + {x<>y}.
+    decide equality.
+  Defined.
+
   Definition to_symbol (unop : t) : token_symbol.t :=
     match unop with
       | negate => token_symbol.minus
@@ -301,6 +305,11 @@ Module binop.
     | assign_shl
     | assign_shr
   .
+
+  Definition eq_dec : forall (x y : t), {x=y} + {x<>y}.
+    decide equality.
+  Defined.
+
   Definition to_symbol (binop : t) : token_symbol.t :=
     match binop with
       | assign => token_symbol.assign
@@ -344,6 +353,10 @@ Module primtype.
     | int
     | signed_int.
 
+  Definition eq_dec : forall (x y : t), {x=y} + {x<>y}.
+    decide equality.
+  Defined.
+
   Definition to_tokens (type : t) : list token.t :=
     match type with
       | void => (token.keyword token_keyword.kw_void) :: nil
@@ -362,6 +375,10 @@ Module visibility_spec.
     | vis_private : t
     | vis_protected : t
     | vis_public : t.
+
+  Definition eq_dec : forall (x y : t), {x=y} + {x<>y}.
+    decide equality.
+  Defined.
 
   Definition to_tokens (this : t) : list token.t :=
     match this with
@@ -385,6 +402,10 @@ Module declspec.
       forall (is_friend : bool),
       forall (is_constexpr : bool),
       t.
+
+  Definition eq_dec : forall (x y : t), {x=y} + {x<>y}.
+    repeat decide equality.
+  Defined.
 
   Definition none : t := make false false false false false false false false false false.
 
@@ -506,6 +527,10 @@ Module attrspec.
     | make :
       forall (is_override : bool),
       t.
+  Definition eq_dec : forall (x y : t), {x=y} + {x<>y}.
+    repeat decide equality.
+  Defined.
+
   Definition none := make false.
   Definition set_override (this : t) :=
     make true.
@@ -524,6 +549,10 @@ Module overloadable_operator.
     | call : t
     | arrow : t
   .
+
+  Definition eq_dec : forall (x y : t), {x=y} + {x<>y}.
+    decide equality ; try apply unop.eq_dec ; try apply binop.eq_dec.
+  Defined.
 
   Definition to_tokens (this : t) : list token.t :=
     match this with
@@ -548,6 +577,10 @@ Module fnqual.
       forall (is_volatile : bool),
       forall (is_noexcept : bool),
       t.
+
+  Definition eq_dec : forall (x y : t), {x=y} + {x<>y}.
+    repeat decide equality.
+  Defined.
 
   Definition none : t := make false false false.
   Definition set_const (this : t) :=

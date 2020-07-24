@@ -5,7 +5,7 @@ Module visitor.
   Definition control := bool.
   Section Dependent.
     Variable T : Set.
-    Record t : Set := make {
+    Record vmt_t : Set := vmt_make {
       decl_pre : decl_t -> T -> control * T ;
       decl_post : decl_t -> T -> decl_t * T ;
       clsdecl_pre : clsdecl_t -> T -> control * T ;
@@ -41,12 +41,76 @@ Module visitor.
       binder_pre : binder_t -> T -> control * T ;
       binder_post : binder_t -> T -> binder_t * T
     }.
+    Definition default_decl_pre (decl : decl_t) (state : T) : control * T := (true, state).
+    Definition default_decl_post (decl : decl_t) (state : T) : decl_t * T := (decl, state).
+    Definition default_clsdecl_pre (clsdecl : clsdecl_t) (state : T) : control * T := (true, state).
+    Definition default_clsdecl_post (clsdecl : clsdecl_t) (state : T) : clsdecl_t * T := (clsdecl, state).
+    Definition default_clsinherit_pre (clsinherit : clsinherit_t) (state : T) : control * T := (true, state).
+    Definition default_clsinherit_post (clsinherit : clsinherit_t) (state : T) : clsinherit_t * T := (clsinherit, state).
+    Definition default_funbody_pre (funbody : funbody_t) (state : T) : control * T := (true, state).
+    Definition default_funbody_post (funbody : funbody_t) (state : T) : funbody_t * T := (funbody, state).
+    Definition default_cinit_pre (cinit : cinit_t) (state : T) : control * T := (true, state).
+    Definition default_cinit_post (cinit : cinit_t) (state : T) : cinit_t * T := (cinit, state).
+    Definition default_idexpr_pre (idexpr : idexpr_t) (state : T) : control * T := (true, state).
+    Definition default_idexpr_post (idexpr : idexpr_t) (state : T) : idexpr_t * T := (idexpr, state).
+    Definition default_scope_pre (scope : scope_t) (state : T) : control * T := (true, state).
+    Definition default_scope_post (scope : scope_t) (state : T) : scope_t * T := (scope, state).
+    Definition default_templateid_pre (templateid : templateid_t) (state : T) : control * T := (true, state).
+    Definition default_templateid_post (templateid : templateid_t) (state : T) : templateid_t * T := (templateid, state).
+    Definition default_tplformarg_pre (tplformarg : tplformarg_t) (state : T) : control * T := (true, state).
+    Definition default_tplformarg_post (tplformarg : tplformarg_t) (state : T) : tplformarg_t * T := (tplformarg, state).
+    Definition default_tplarg_pre (tplarg : tplarg_t) (state : T) : control * T := (true, state).
+    Definition default_tplarg_post (tplarg : tplarg_t) (state : T) : tplarg_t * T := (tplarg, state).
+    Definition default_typeexpr_pre (typeexpr : typeexpr_t) (state : T) : control * T := (true, state).
+    Definition default_typeexpr_post (typeexpr : typeexpr_t) (state : T) : typeexpr_t * T := (typeexpr, state).
+    Definition default_funtypeexpr_pre (funtypeexpr : funtypeexpr_t) (state : T) : control * T := (true, state).
+    Definition default_funtypeexpr_post (funtypeexpr : funtypeexpr_t) (state : T) : funtypeexpr_t * T := (funtypeexpr, state).
+    Definition default_funarg_pre (funarg : funarg_t) (state : T) : control * T := (true, state).
+    Definition default_funarg_post (funarg : funarg_t) (state : T) : funarg_t * T := (funarg, state).
+    Definition default_stmt_pre (stmt : stmt_t) (state : T) : control * T := (true, state).
+    Definition default_stmt_post (stmt : stmt_t) (state : T) : stmt_t * T := (stmt, state).
+    Definition default_condition_pre (condition : condition_t) (state : T) : control * T := (true, state).
+    Definition default_condition_post (condition : condition_t) (state : T) : condition_t * T := (condition, state).
+    Definition default_expr_pre (expr : expr_t) (state : T) : control * T := (true, state).
+    Definition default_expr_post (expr : expr_t) (state : T) : expr_t * T := (expr, state).
+    Definition default_binder_pre (binder : binder_t) (state : T) : control * T := (true, state).
+    Definition default_binder_post (binder : binder_t) (state : T) : binder_t * T := (binder, state).
+
+    Definition vmt : vmt_t := vmt_make
+      default_decl_pre default_decl_post
+      default_clsdecl_pre default_clsdecl_post
+      default_clsinherit_pre default_clsinherit_post
+      default_funbody_pre default_funbody_post
+      default_cinit_pre default_cinit_post
+      default_idexpr_pre default_idexpr_post
+      default_scope_pre default_scope_post
+      default_templateid_pre default_templateid_post
+      default_tplformarg_pre default_tplformarg_post
+      default_tplarg_pre default_tplarg_post
+      default_typeexpr_pre default_typeexpr_post
+      default_funtypeexpr_pre default_funtypeexpr_post
+      default_funarg_pre default_funarg_post
+      default_stmt_pre default_stmt_post
+      default_condition_pre default_condition_post
+      default_expr_pre default_expr_post
+      default_binder_pre default_binder_post.
+
+    Definition override_typeexpr_pre fn (vmt : vmt_t) : vmt_t :=
+      let (decl_pre, decl_post, clsdecl_pre, clsdecl_post, clsinherit_pre, clsinherit_post, funbody_pre, funbody_post, cinit_pre, cinit_post, idexpr_pre, idexpr_post, scope_pre, scope_post, templateid_pre, templateid_post, tplformarg_pre, tplformarg_post, tplarg_pre, tplarg_post, typeexpr_pre, typeexpr_post, funtypeexpr_pre, funtypeexpr_post, funarg_pre, funarg_post, stmt_pre, stmt_post, condition_pre, condition_post, expr_pre, expr_post, binder_pre, binder_post) := vmt in
+      let typeexpr_pre := fn in
+      vmt_make decl_pre decl_post clsdecl_pre clsdecl_post clsinherit_pre clsinherit_post funbody_pre funbody_post cinit_pre cinit_post idexpr_pre idexpr_post scope_pre scope_post templateid_pre templateid_post tplformarg_pre tplformarg_post tplarg_pre tplarg_post typeexpr_pre typeexpr_post funtypeexpr_pre funtypeexpr_post funarg_pre funarg_post stmt_pre stmt_post condition_pre condition_post expr_pre expr_post binder_pre binder_post.
+
+    Definition override_typeexpr_post fn (vmt : vmt_t) : vmt_t :=
+      let (decl_pre, decl_post, clsdecl_pre, clsdecl_post, clsinherit_pre, clsinherit_post, funbody_pre, funbody_post, cinit_pre, cinit_post, idexpr_pre, idexpr_post, scope_pre, scope_post, templateid_pre, templateid_post, tplformarg_pre, tplformarg_post, tplarg_pre, tplarg_post, typeexpr_pre, typeexpr_post, funtypeexpr_pre, funtypeexpr_post, funarg_pre, funarg_post, stmt_pre, stmt_post, condition_pre, condition_post, expr_pre, expr_post, binder_pre, binder_post) := vmt in
+      let typeexpr_post := fn in
+      vmt_make decl_pre decl_post clsdecl_pre clsdecl_post clsinherit_pre clsinherit_post funbody_pre funbody_post cinit_pre cinit_post idexpr_pre idexpr_post scope_pre scope_post templateid_pre templateid_post tplformarg_pre tplformarg_post tplarg_pre tplarg_post typeexpr_pre typeexpr_post funtypeexpr_pre funtypeexpr_post funarg_pre funarg_post stmt_pre stmt_post condition_pre condition_post expr_pre expr_post binder_pre binder_post.
+
   End Dependent.
 End visitor.
 
 Section Dependent.
   Variable T : Set.
-  Variable visitor : visitor.t T.
+  Variable visitor : visitor.vmt_t T.
 
   Fixpoint decls_visit (state : T) (decls : decls_t) {struct decls} : T * decls_t :=
     match decls with
