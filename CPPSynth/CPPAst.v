@@ -1,6 +1,6 @@
 Require Import String Ascii List.
+Require Import CPPSynth.ListClass.
 Require CPPSynth.StringUtil.
-
 Require Import Peano_dec.
 
 Module literal.
@@ -953,6 +953,106 @@ with binder_t : Set :=
     forall (id : String.string),
     forall (expr : expr_t),
     binder_t.
+
+Instance decls_list : ListClass decl_t decls_t :=
+{|
+  to_list := decls_t_rec (fun _ => list decl_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => decls_t) decls_nil (fun n l nl => decls_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
+
+Instance clsdecls_list : ListClass clsdecl_t clsdecls_t :=
+{|
+  to_list := clsdecls_t_rec (fun _ => list clsdecl_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => clsdecls_t) clsdecls_nil (fun n l nl => clsdecls_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
+
+Instance cinits_list : ListClass cinit_t cinits_t :=
+{|
+  to_list := cinits_t_rec (fun _ => list cinit_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => cinits_t) cinits_nil (fun n l nl => cinits_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
+
+Instance clsinherits_list : ListClass clsinherit_t clsinherits_t :=
+{|
+  to_list := clsinherits_t_rec (fun _ => list clsinherit_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => clsinherits_t) clsinherits_nil (fun n l nl => clsinherits_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
+
+Instance tplformargs_list : ListClass tplformarg_t tplformargs_t :=
+{|
+  to_list := tplformargs_t_rec (fun _ => list tplformarg_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => tplformargs_t) tplformargs_nil (fun n l nl => tplformargs_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
+
+Instance tplargs_list : ListClass tplarg_t tplargs_t :=
+{|
+  to_list := tplargs_t_rec (fun _ => list tplarg_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => tplargs_t) tplargs_nil (fun n l nl => tplargs_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
+
+Instance funargs_list : ListClass funarg_t funargs_t :=
+{|
+  to_list := funargs_t_rec (fun _ => list funarg_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => funargs_t) funargs_nil (fun n l nl => funargs_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
+
+Instance stmts_list : ListClass stmt_t stmts_t :=
+{|
+  to_list := stmts_t_rec (fun _ => list stmt_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => stmts_t) stmts_nil (fun n l nl => stmts_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
+
+Instance callargs_list : ListClass expr_t callargs_t :=
+{|
+  to_list := callargs_t_rec (fun _ => list expr_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => callargs_t) callargs_nil (fun n l nl => callargs_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
+
+Instance binders_list : ListClass binder_t binders_t :=
+{|
+  to_list := binders_t_rec (fun _ => list binder_t) nil (fun n nl l => cons n l) ;
+  from_list := list_rec (fun _ => binders_t) binders_nil (fun n l nl => binders_cons n nl)
+|}.
+Proof.
+  induction l; simpl ; congruence.
+  induction l; simpl ; congruence.
+Defined.
 
 Definition bool_eq_dec (x y : bool) : {x=y} + {x<>y}.
   decide equality.
@@ -1988,6 +2088,7 @@ with binder_serialize (this : binder_t) : list token.t :=
       token.symbol token_symbol.close_brace :: nil
   end.
 
+(*
 Fixpoint make_stmts (stmts : list stmt_t) : stmts_t :=
   match stmts with
     | nil => stmts_nil
@@ -2016,7 +2117,7 @@ Fixpoint make_callargs (args : list expr_t) : callargs_t :=
   match args with
     | nil => callargs_nil
     | cons arg args => callargs_cons arg (make_callargs args)
-  end.
+  end.*)
 
 Example ex_decl_array_of_pointers :=
     decl_simple
@@ -2038,7 +2139,7 @@ Example ex_decl_fun :=
       (typeexpr_function
         (funtypeexpr_make
           (typeexpr_pointer (typeexpr_primitive primtype.int))
-          (make_funargs (funarg_named (typeexpr_primitive primtype.int) "a" :: funarg_named (typeexpr_primitive primtype.char) "b" :: nil))
+          (from_list (funarg_named (typeexpr_primitive primtype.int) "a" :: funarg_named (typeexpr_primitive primtype.char) "b" :: nil))
           fnqual.none
           false))
       (idexpr_id scope_none "foo")
@@ -2047,10 +2148,10 @@ Eval lazy in (serialize_tokens (decl_serialize ex_decl_fun)).
 Example ex_decl_class :=
     decl_class
       (idexpr_id scope_none "foo") false clsinherits_nil
-      (make_clsdecls (
+      (from_list (
         (clsdecl_group
           visibility_spec.vis_public
-          (make_decls
+          (from_list
             (ex_decl_fun ::
             nil)) ::
         nil))).
@@ -2079,7 +2180,7 @@ Example ex_decl_fundef :=
     declspec.none
     (funtypeexpr_make
       (typeexpr_primitive primtype.int)
-      (make_funargs (
+      (from_list (
         funarg_named (typeexpr_primitive primtype.int) "a" ::
         funarg_named (typeexpr_primitive primtype.char) "b" ::
         nil))
@@ -2089,7 +2190,7 @@ Example ex_decl_fundef :=
     attrspec.none
     (funbody_stmts
       cinits_nil
-      (make_stmts (
+      (from_list (
         (stmt_return (expr_literal (literal.decimal 32))) ::
         nil)
       )
@@ -2101,7 +2202,7 @@ Example ex_hello_world_main :=
     declspec.none
     (funtypeexpr_make
       (typeexpr_primitive primtype.int)
-      (make_funargs (
+      (from_list (
         funarg_named (typeexpr_primitive primtype.int) "args" ::
         funarg_named (typeexpr_pointer (typeexpr_pointer (typeexpr_primitive primtype.char))) "argv" ::
         nil))
@@ -2111,11 +2212,11 @@ Example ex_hello_world_main :=
     attrspec.none
     (funbody_stmts
       cinits_nil
-      (make_stmts (
+      (from_list (
         (stmt_expr
           (expr_call
             (expr_id (idexpr_id scope_none "printf"))
-            (make_callargs (
+            (from_list (
               expr_literal (literal.str "Hello world!") ::
               nil)))) ::
         (stmt_return (expr_literal (literal.decimal 0))) ::
