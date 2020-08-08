@@ -9,6 +9,7 @@ CPPSynth/CPPAstVisit.v
 CPPSynth/Gallina.v
 CPPSynth/Generate.v
 CPPSynth/Exception.v
+CPPSynth/ListClass.v
 CPPSynth/MaybeMonad.v
 CPPSynth/Monad.v
 CPPSynth/SExpression.v
