@@ -537,6 +537,12 @@ Section Dependent.
             let (state, args) := funargs_visit state args in
             let (state, body) := stmts_visit state body in
             (expr_lambda binders args body, state)
+          | expr_lambda_rettype binders args rettype body =>
+            let (state, binders) := binders_visit state binders in
+            let (state, args) := funargs_visit state args in
+            let (state, rettype) := typeexpr_visit state rettype in
+            let (state, body) := stmts_visit state body in
+            (expr_lambda binders args body, state)
           | expr_dynamic_cast target_type value =>
             let (state, target_type) := typeexpr_visit state target_type in
             let (state, value) := expr_visit state value in

@@ -5,6 +5,7 @@
 src/export_sexpr_plugin.ml4
 theories/ExportSExpr.v
 CPPSynth/CPPAst.v
+CPPSynth/CPPAstBase.v
 CPPSynth/CPPAstVisit.v
 CPPSynth/Gallina.v
 CPPSynth/Generate.v
