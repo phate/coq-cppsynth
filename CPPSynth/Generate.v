@@ -9,6 +9,8 @@ Require Import
   CPPSynth.Exception
   CPPSynth.Gallina
   CPPSynth.CPPAst
+  CPPSynth.CPPAstBase
+  CPPSynth.CPPAstSerialize
   CPPSynth.CPPAstVisit
   CPPSynth.ListClass
   CPPSynth.Monad.
@@ -375,16 +377,6 @@ Fixpoint collect_tplformargs_from_product
 
 (*** INDUCTIVE XFORM CODE ***)
 
-Definition one_inductive_fwd (oi : one_inductive.t) : decl_t :=
-  let (name, sig, constructors) := oi in
-  let tpl := collect_tplformargs_from_product sig in
-  let d := decl_class_fwd (idexpr_id scope_none name) in
-  maybe_template tpl d.
-
-Definition inductive_fwd (i : inductive.t) : list decl_t :=
-  let (ois) := i in
-  map (one_inductive_fwd) ois.
-
 Definition gen_virtual_destructor_decldef (name : string) : decl_t :=
   let ds := declspec.none in
   let ds := declspec.set_virtual ds in
@@ -406,7 +398,7 @@ Definition make_repr_base_class (name : string) :=
         (from_list (funarg_named (cg.constref_of repr_cls_type) "other" :: nil))
         (fnqual.set_noexcept (fnqual.set_const fnqual.none))
         false)
-      (idexpr_operator scope_none (overloadable_operator.binary binop.eq))
+      (idexpr_operator scope_none (genop.binary binop.eq))
       attrspec.none
       funbody_abstract in
   decl_class
@@ -482,7 +474,7 @@ Definition make_constructor_repr_class
         (from_list (funarg_named (cg.constref_of base_cls_type) "other" :: nil))
         (fnqual.set_noexcept (fnqual.set_const fnqual.none))
         false)
-      (idexpr_operator scope_none (overloadable_operator.binary binop.eq))
+      (idexpr_operator scope_none (genop.binary binop.eq))
       (attrspec.set_override attrspec.none)
       (funbody_stmts (from_list nil)
         (from_list
@@ -517,7 +509,7 @@ Definition make_constructor_repr_class
         (from_list (funarg_named (cg.constref_of repr_cls_type) "other" :: nil))
         (fnqual.set_noexcept (fnqual.set_const fnqual.none))
         false)
-      (idexpr_operator scope_none (overloadable_operator.binary binop.eq))
+      (idexpr_operator scope_none (genop.binary binop.eq))
       attrspec.none
       (funbody_stmts cinits_nil
         (from_list (stmt_return all_member_eq :: nil))) in
@@ -772,7 +764,7 @@ Definition oind_convert (oi : one_inductive.t)
         (from_list (funarg_named (cg.constref_of cls_type) "other" :: nil))
         (fnqual.set_noexcept fnqual.none)
         false)
-      (idexpr_operator scope_none (overloadable_operator.binary binop.assign))
+      (idexpr_operator scope_none (genop.binary binop.assign))
       attrspec.none
       (funbody_stmts
         (from_list nil)
@@ -790,7 +782,7 @@ Definition oind_convert (oi : one_inductive.t)
         (from_list (funarg_named (typeexpr_rvaluereference cls_type) "other" :: nil))
         (fnqual.set_noexcept fnqual.none)
         false)
-      (idexpr_operator scope_none (overloadable_operator.binary binop.assign))
+      (idexpr_operator scope_none (genop.binary binop.assign))
       attrspec.none
       (funbody_stmts
         (from_list nil)
@@ -808,7 +800,7 @@ Definition oind_convert (oi : one_inductive.t)
         (from_list (funarg_named (cg.constref_of cls_type) "other" :: nil))
         (fnqual.set_noexcept (fnqual.set_const fnqual.none))
         false)
-      (idexpr_operator scope_none (overloadable_operator.binary binop.eq))
+      (idexpr_operator scope_none (genop.binary binop.eq))
       attrspec.none
       (funbody_stmts 
         (from_list nil)
@@ -852,6 +844,11 @@ Definition ind_convert (i : inductive.t) : ind_cpp_repr.t :=
       map oind_convert oinds
   end.
 
+Definition oind_gen_fwddecl (r : oind_cpp_repr.t) : decl_t :=
+  let (tpl, id, decls) := r in
+  let d := decl_class_fwd id in
+  maybe_template tpl d.
+
 Definition oind_gen_clsdecl (r : oind_cpp_repr.t) : decl_t := 
   let (tplformargs, clsid, clsdecls) := r in
   generate_stripped_class_def tplformargs clsid clsdecls.
@@ -859,6 +856,9 @@ Definition oind_gen_clsdecl (r : oind_cpp_repr.t) : decl_t :=
 Definition oind_gen_otherdecl (r : oind_cpp_repr.t) : decls_t :=
   let (tplformargs, clsid, clsdecls) := r in
   from_list (generate_member_defs tplformargs clsid clsdecls).
+
+Definition ind_gen_fwddecls (r : list oind_cpp_repr.t) : decls_t :=
+  from_list (map (oind_gen_fwddecl) r).
 
 Definition ind_gen_clsdecls (r : ind_cpp_repr.t) : decls_t :=
   from_list (map oind_gen_clsdecl r).
@@ -873,6 +873,9 @@ Definition ind_gen_otherdecl (r : ind_cpp_repr.t) : decls_t :=
         let decls := app decls d in
         loop decls r
     end) decls r.
+
+Definition ind_gen_decls (r : ind_cpp_repr.t) : decls_t :=
+  app (app (ind_gen_fwddecls r) (ind_gen_clsdecls r)) (ind_gen_otherdecl r).
 
 (**** EXAMPLES ****)
 
@@ -905,17 +908,6 @@ Example oiY :=
     nil).
 
 Example i1 := inductive.make (oiX :: oiY :: nil).
+Example i_cpp := ind_convert i1.
 
-Eval lazy in (collect_tplformargs_from_product (let (_, sig, _) := oiX in sig)).
-
-Eval lazy in (serialize_tokens (decls_serialize (from_list (inductive_fwd i1)))).
-
-Example icls1 := oind_convert oiX.
-
-Eval lazy in (serialize_tokens (decl_serialize (oind_gen_clsdecl icls1))).
-Eval lazy in (serialize_tokens (decls_serialize (oind_gen_otherdecl icls1))).
-
-Example i := ind_convert i1.
-
-Eval lazy in (serialize_tokens (decls_serialize (ind_gen_clsdecls i))).
-Eval lazy in (serialize_tokens (decls_serialize (ind_gen_otherdecl i))).
+Eval lazy in (serialize_tokens (decls_serialize (ind_gen_decls i_cpp))).
