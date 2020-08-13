@@ -229,7 +229,7 @@ Module one_inductive.
         if string_dec kind "OneInductive" then
           from_sexpr_list l
         else
-          Exception "ParseError" ("Expected OneInducitev, got " ++ kind)
+          Exception "ParseError" ("Expected OneInductive, got " ++ kind)
       | _ => Exception "ParseError" "OneInductive needs name, type and constructors"
     end.
 
