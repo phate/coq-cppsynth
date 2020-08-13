@@ -95,22 +95,16 @@ Fixpoint decl_remove_def (decl : decl_t) : decl_t :=
     | _ => decl
   end.
 
-Fixpoint decls_remove_defs (decls : decls_t) : decls_t :=
-  match decls with
-    | decls_nil => decls_nil
-    | decls_cons decl decls =>
-      decls_cons (decl_remove_def decl) (decls_remove_defs decls)
-  end.
+Definition decls_remove_defs (decls : decls_t) : decls_t :=
+  from_list (map decl_remove_def (to_list decls)).
 
-Fixpoint clsdecls_remove_defs (cdecls : clsdecls_t) : clsdecls_t :=
-  match cdecls with
-    | clsdecls_nil => clsdecls_nil
-    | clsdecls_cons cdecl cdecls =>
-      let (vis, decls) := cdecl in
-      let decls := decls_remove_defs decls in
-      let cdecl := clsdecl_group vis decls in
-      clsdecls_cons cdecl (clsdecls_remove_defs cdecls)
-  end.
+Definition clsdecl_remove_defs (cdecl : clsdecl_t) : clsdecl_t :=
+    let (vis, decls) := cdecl in
+    let decls := decls_remove_defs decls in
+    clsdecl_group vis decls.
+
+Definition clsdecls_remove_defs (cdecls : clsdecls_t) : clsdecls_t :=
+  from_list (map clsdecl_remove_defs (to_list cdecls)).
 
 Fixpoint cls_remove_defs (decl : decl_t) : decl_t :=
   match decl with
