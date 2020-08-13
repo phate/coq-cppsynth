@@ -1,7 +1,7 @@
 Require 
   CPPSynth.Monad.
 
-Instance StateMonad (S : Type) : CPPSynth.Monad.Monad (fun A => S -> A * S) :=
+#[refine] Instance StateMonad (S : Type) : CPPSynth.Monad.Monad (fun A => S -> A * S) :=
 {|
   CPPSynth.Monad.return_ := fun A (a : A) (s : S) => (a, s) ;
   CPPSynth.Monad.bind := fun A m B f s => let (a, s) := m s in f a s ;

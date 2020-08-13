@@ -343,7 +343,7 @@ with binder_t : Set :=
     forall (expr : expr_t),
     binder_t.
 
-Instance decls_list : ListClass decl_t decls_t :=
+#[refine] Instance decls_list : ListClass decl_t decls_t :=
 {|
   to_list := decls_t_rec (fun _ => list decl_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => decls_t) decls_nil (fun n l nl => decls_cons n nl)
@@ -353,7 +353,7 @@ Proof.
   induction l; simpl ; congruence.
 Defined.
 
-Instance clsdecls_list : ListClass clsdecl_t clsdecls_t :=
+#[refine] Instance clsdecls_list : ListClass clsdecl_t clsdecls_t :=
 {|
   to_list := clsdecls_t_rec (fun _ => list clsdecl_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => clsdecls_t) clsdecls_nil (fun n l nl => clsdecls_cons n nl)
@@ -363,7 +363,7 @@ Proof.
   induction l; simpl ; congruence.
 Defined.
 
-Instance cinits_list : ListClass cinit_t cinits_t :=
+#[refine] Instance cinits_list : ListClass cinit_t cinits_t :=
 {|
   to_list := cinits_t_rec (fun _ => list cinit_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => cinits_t) cinits_nil (fun n l nl => cinits_cons n nl)
@@ -373,7 +373,7 @@ Proof.
   induction l; simpl ; congruence.
 Defined.
 
-Instance clsinherits_list : ListClass clsinherit_t clsinherits_t :=
+#[refine] Instance clsinherits_list : ListClass clsinherit_t clsinherits_t :=
 {|
   to_list := clsinherits_t_rec (fun _ => list clsinherit_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => clsinherits_t) clsinherits_nil (fun n l nl => clsinherits_cons n nl)
@@ -383,7 +383,7 @@ Proof.
   induction l; simpl ; congruence.
 Defined.
 
-Instance tplformargs_list : ListClass tplformarg_t tplformargs_t :=
+#[refine] Instance tplformargs_list : ListClass tplformarg_t tplformargs_t :=
 {|
   to_list := tplformargs_t_rec (fun _ => list tplformarg_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => tplformargs_t) tplformargs_nil (fun n l nl => tplformargs_cons n nl)
@@ -393,7 +393,7 @@ Proof.
   induction l; simpl ; congruence.
 Defined.
 
-Instance tplargs_list : ListClass tplarg_t tplargs_t :=
+#[refine] Instance tplargs_list : ListClass tplarg_t tplargs_t :=
 {|
   to_list := tplargs_t_rec (fun _ => list tplarg_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => tplargs_t) tplargs_nil (fun n l nl => tplargs_cons n nl)
@@ -403,7 +403,7 @@ Proof.
   induction l; simpl ; congruence.
 Defined.
 
-Instance funargs_list : ListClass funarg_t funargs_t :=
+#[refine] Instance funargs_list : ListClass funarg_t funargs_t :=
 {|
   to_list := funargs_t_rec (fun _ => list funarg_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => funargs_t) funargs_nil (fun n l nl => funargs_cons n nl)
@@ -413,7 +413,7 @@ Proof.
   induction l; simpl ; congruence.
 Defined.
 
-Instance stmts_list : ListClass stmt_t stmts_t :=
+#[refine] Instance stmts_list : ListClass stmt_t stmts_t :=
 {|
   to_list := stmts_t_rec (fun _ => list stmt_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => stmts_t) stmts_nil (fun n l nl => stmts_cons n nl)
@@ -423,7 +423,7 @@ Proof.
   induction l; simpl ; congruence.
 Defined.
 
-Instance callargs_list : ListClass expr_t callargs_t :=
+#[refine] Instance callargs_list : ListClass expr_t callargs_t :=
 {|
   to_list := callargs_t_rec (fun _ => list expr_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => callargs_t) callargs_nil (fun n l nl => callargs_cons n nl)
@@ -433,7 +433,7 @@ Proof.
   induction l; simpl ; congruence.
 Defined.
 
-Instance binders_list : ListClass binder_t binders_t :=
+#[refine] Instance binders_list : ListClass binder_t binders_t :=
 {|
   to_list := binders_t_rec (fun _ => list binder_t) nil (fun n nl l => cons n l) ;
   from_list := list_rec (fun _ => binders_t) binders_nil (fun n l nl => binders_cons n nl)

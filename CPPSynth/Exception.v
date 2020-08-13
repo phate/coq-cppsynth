@@ -13,7 +13,7 @@ Inductive ExceptionOr (T : Type) : Type :=
 Arguments Exception {T}.
 Arguments Okay {T}.
 
-Instance ExceptionMonad : CPPSynth.Monad.Monad ExceptionOr :=
+#[refine] Instance ExceptionMonad : CPPSynth.Monad.Monad ExceptionOr :=
 {| 
   CPPSynth.Monad.return_ := @Okay;
   CPPSynth.Monad.bind := fun A m B f => 

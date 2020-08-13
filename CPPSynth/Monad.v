@@ -30,7 +30,7 @@ Notation "a >> f" := (a >>= fun _ => f) (at level 50, left associativity).
 Notation "'do' a <-- e ; c" := (e >>= (fun a => c)) (at level 60, right associativity).
 Notation "'pass'" := (fun t => (tt, t)).
 
-Instance Maybe : Monad option :=
+#[refine] Instance Maybe : Monad option :=
 {| 
   return_ := @Some;
   bind := fun A m B f => match m with None => None | Some a => f a end ;

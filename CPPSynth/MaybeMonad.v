@@ -4,7 +4,7 @@ Require Import
 (* Example wrapping "optional" into a monad. This is not actually used
    but serves as a demonstrator for the similarly-minded "ExceptionMonad". *)
 
-Instance Maybe : CPPSynth.Monad.Monad option :=
+#[refine] Instance Maybe : CPPSynth.Monad.Monad option :=
 {| 
   CPPSynth.Monad.return_ := @Some;
   CPPSynth.Monad.bind := fun A m B f => match m with None => None | Some a => f a end ;
