@@ -1,5 +1,7 @@
 DECLARE PLUGIN "export_sexpr_plugin"
 
+{
+
 open Constr
 open Declarations
 open Environ
@@ -17,8 +19,8 @@ let rec range (min : int) (max : int) =
 let build_sexpr (node : string) (args : string list) : string =
   "(" ^ (String.concat " " (node :: args)) ^ ")"
 
-let build_name_sexpr (name : Name.t) : string =
-  match name with
+let build_name_sexpr (name : Name.t Context.binder_annot) : string =
+  match Context.binder_name name with
     | Name id -> build_sexpr "Name" [Id.to_string id]
     | Anonymous -> "(Anonymous)"
 
@@ -29,7 +31,7 @@ let build_rel_sexpr (env : env) (index : int) : string =
         | CRD.LocalAssum (name, _) -> name
         | CRD.LocalDef (name, _ ,_) -> name
     ) in
-    match name with
+    match Context.binder_name name with
       | Name id ->
         build_sexpr "Local" [Id.to_string id ; string_of_int index]
       | Anonymous ->
@@ -37,7 +39,7 @@ let build_rel_sexpr (env : env) (index : int) : string =
   with Not_found ->
     build_sexpr "Rel" [string_of_int index]
 
-let bindings_for_fix (names : Name.t array) (typs : constr array) =
+let bindings_for_fix (names : Name.t Context.binder_annot array) (typs : constr array) =
   Array.to_list
     (CArray.map2_i
       (fun i name typ -> CRD.(LocalAssum (name, Vars.lift i typ)))
@@ -56,6 +58,7 @@ let rec build_term_sexpr (env : env) (term : types) : string =
     | Sort sort ->
       let kind = (match sort with
         | Sorts.Prop -> "Prop"
+        | Sorts.SProp -> "SProp"
         | Sorts.Set -> "Set"
         | Sorts.Type u -> "Type" (* FIXME: universe u *)
       ) in
@@ -154,22 +157,25 @@ let rec build_term_sexpr (env : env) (term : types) : string =
       let p' = KerName.to_string (Constant.canonical (Projection.constant p)) in
       let c' = build_term_sexpr env c in
       build_sexpr "Proj" [p' ; c']
+    | Int i -> build_sexpr "Int" [ Uint63.to_string i ]
+    | Float f -> build_sexpr "Float" [Float64.to_string f ]
 
 let build_top_term_sexpr (term : types) : string =
   let env = Global.env() in
   build_term_sexpr env term
 
-let build_constant_sexpr (label : Label.t) (cb : Declarations.constant_body) : string =
+let build_constant_sexpr (label : Label.t) (cb : Opaqueproof.opaque Declarations.constant_body) : string =
   let name = Label.to_string label in
   let type_term = cb.const_type in
   match cb.const_body with
-    Undef _ ->
+    | Undef _ ->
       build_sexpr "Axiom" [ name ; build_top_term_sexpr type_term ]
     | Def cs ->
       let term = (Mod_subst.force_constr cs) in
       build_sexpr "Definition" [ name ; build_top_term_sexpr type_term ; build_top_term_sexpr term  ]
     | OpaqueDef o ->
       build_sexpr "Theorem" [ name ; build_top_term_sexpr type_term ]
+    | Primitive p -> build_sexpr "Primitive" [ CPrimitives.to_string p ]
 
 let get_type_of_inductive (mib : mutual_inductive_body) (oib : one_inductive_body) =
   let univs = Declareops.inductive_polymorphic_context mib in
@@ -181,12 +187,12 @@ let bindings_for_inductive (mib : mutual_inductive_body) =
   Array.to_list
     (CArray.mapi
       (fun i oib ->
-        CRD.(LocalAssum (Names.Name.mk_name oib.mind_typename, Vars.lift i (get_type_of_inductive mib oib))))
+        CRD.(LocalAssum (Context.annotR (Names.Name.mk_name oib.mind_typename), Vars.lift i (get_type_of_inductive mib oib))))
       mib.mind_packets)
 
 let build_inductive_sexpr (env : env) (mib : mutual_inductive_body) (oib : one_inductive_body) =
   let ind_type = get_type_of_inductive mib oib in
-  let arity = oib.mind_arity_ctxt in
+  (* let arity = oib.mind_arity_ctxt in *)
   let constr_names = oib.mind_consnames in
   let constr_types = oib.mind_user_lc in
   let constructors =
@@ -267,17 +273,19 @@ let handle_export (qid : Libnames.qualid) : unit =
   with
     | Not_found ->
       try
-        let mp = Nametab.locate_modtype qid in
+        (* let mp = Nametab.locate_modtype qid in *)
         Feedback.msg_notice (Pp.strbrk "modtype")
       with
         | Not_found ->
           try
-            let gref = Nametab.locate qid in
+            (* let gref = Nametab.locate qid in *)
             Feedback.msg_notice (Pp.strbrk "gref")
           with
             | Not_found -> CErrors.user_err (Pp.str "Not found")
 
+}
+
 VERNAC COMMAND EXTEND ExportSExpr CLASSIFIED AS SIDEFF
 | [ "ExportSExpr" global(qid) ] ->
-  [ handle_export qid ]
+  { handle_export qid }
 END

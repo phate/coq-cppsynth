@@ -2,7 +2,7 @@
 -R theories ExportSExpr
 -R CPPSynth CPPSynth
 
-src/export_sexpr_plugin.ml4
+src/export_sexpr_plugin.mlg
 theories/ExportSExpr.v
 CPPSynth/CPPAst.v
 CPPSynth/CPPAstBase.v
