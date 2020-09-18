@@ -4,6 +4,19 @@ Require
 
 Require Import ExportSExpr.ExportSExpr.
 
+Module x.
+
+Definition color := bool.
+
+(*
+Definition zero := 10000.
+*)
+End x.
+
+ExportSExpr x.
+
+(*
+
 ExportSExpr CPPSynth.SExpression.
 
 Class C1 (T : Set) : Set :=
@@ -22,3 +35,4 @@ Instance C1A : C1 acc_state :=
 |}.
 
 ExportSExpr method1.
+*)

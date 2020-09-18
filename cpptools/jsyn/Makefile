@@ -1,7 +1,10 @@
 LIBJSYN_SRC = \
 	src/sexpr.cc \
+	src/sexpr-rvsdg.cc \
 	\
+	src/ir/definition.cc \
 	src/ir/lambda.cc \
+	src/ir/module.cc \
 	src/ir/phi.cc \
 	src/ir/types.cc \
 	\
@@ -26,7 +29,7 @@ libjsyn.a: $(patsubst %.cc, %.la, $(LIBJSYN_SRC))
 	ranlib $@
 
 convert: CFLAGS += -O2
-convert: LDFLAGS += -L. -ljsyn
+convert: LDFLAGS += -L. -L$(JIVE_ROOT) -ljsyn -ljive
 convert: convert.cc libjsyn.a
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
 

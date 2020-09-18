@@ -1,6 +1,10 @@
 #include <jsyn/sexpr.hpp>
 
-int main()
+#include <jsyn/sexpr-rvsdg.hpp>
+
+#include <jive/view.h>
+
+int main(int argc, char ** argv)
 {
 	jsyn::sexpr_tokenizer tokenizer;
 	jsyn::sexpr_parser parser;
@@ -25,6 +29,10 @@ int main()
 	}
 
 	auto e = parser.finalize();
+
+	auto rvsdg = convert_sexpr(*e);
+	jive::view(rvsdg->graph(), stdout);
+
 	if (e) {
 		std::string s;
 		format_sexpr(*e, "", s);
