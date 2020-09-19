@@ -1,6 +1,6 @@
 #include <jsyn/sexpr.hpp>
-
 #include <jsyn/sexpr-rvsdg.hpp>
+#include <jsyn/util/assert.hpp>
 
 #include <jive/view.h>
 
@@ -9,9 +9,12 @@ int main(int argc, char ** argv)
 	jsyn::sexpr_tokenizer tokenizer;
 	jsyn::sexpr_parser parser;
 
+	JSYN_ASSERT(argc == 2);
+	auto fd = fopen(argv[1], "r");
+
 	for (;;) {
 		char buffer[1024];
-		ssize_t count = ::read(0, buffer, 1024);
+		ssize_t count = ::read(fileno(fd), buffer, 1024);
 		if (count <= 0) {
 			break;
 		}
@@ -23,6 +26,9 @@ int main(int argc, char ** argv)
 			}
 		}
 	}
+
+	fclose(fd);
+
 	auto tok = tokenizer.finish();
 	if (tok) {
 		parser.process_token(*tok);
@@ -30,8 +36,8 @@ int main(int argc, char ** argv)
 
 	auto e = parser.finalize();
 
-	auto rvsdg = convert_sexpr(*e);
-	jive::view(rvsdg->graph(), stdout);
+//	auto rvsdg = convert_sexpr(*e);
+//	jive::view(rvsdg->graph(), stdout);
 
 	if (e) {
 		std::string s;

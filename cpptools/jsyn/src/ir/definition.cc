@@ -14,7 +14,7 @@ operation::~operation()
 std::string
 operation::debug_string() const
 {
-	return "Module " + name();
+	return "Definition " + name();
 }
 
 bool

@@ -10,10 +10,55 @@
 namespace jsyn {
 
 class context final {
+	class frame final {
+		public:
+			frame(jive::region * region)
+			: region_(region)
+			{}
+
+			jive::region *
+			region() const noexcept
+			{
+				return region_;
+			}
+
+			bool
+			contains(const std::string & name) const noexcept
+			{
+				return outputs_.find(name) != outputs_.end();
+			}
+
+			jive::output *
+			lookup(const std::string & name) const noexcept
+			{
+				JSYN_ASSERT(contains(name));
+				return outputs_.at(name);
+			}
+
+			void
+			insert(const std::string & name, jive::output * output)
+			{
+				JSYN_ASSERT(!contains(name));
+				outputs_[name] = output;
+			}
+
+			static std::unique_ptr<frame>
+			create(jive::region * region)
+			{
+				return std::make_unique<frame>(region);
+			}
+
+		private:
+			jive::region * region_;
+			std::unordered_map<std::string, jive::output*> outputs_;
+	};
+
 public:
 	context(jsyn::rvsdg & rvsdg)
 	: rvsdg_(&rvsdg)
-	{}
+	{
+		push_region(rvsdg.graph().root());
+	}
 
 	context(const context&) = delete;
 
@@ -34,24 +79,44 @@ public:
 	jive::region *
 	region() const noexcept
 	{
-		return regions_.top();
+		JSYN_ASSERT(!frames_.empty());
+		return frames_.back()->region();
 	}
 
 	void
 	push_region(jive::region * region)
 	{
-		regions_.push(region);
+		frames_.push_back(frame::create(region));
 	}
 
 	void
 	pop_region()
 	{
-		regions_.pop();
+		JSYN_ASSERT(!frames_.empty());
+		frames_.pop_back();
 	}
+
+	jive::output *
+	lookup(const std::string & name)
+	{
+		for (auto it = frames_.rbegin(); it != frames_.rend(); it++) {
+			if ((*it)->contains(name))
+				return (*it)->lookup(name);
+		}
+
+		auto graph = frames_[0]->region()->graph();
+		//auto output = graph->add_import(name, );
+	}
+
+	void
+	insert(const std::string & name, jive::output * output)
+	{
+		frames_.back()->insert(name, output);
+	}	
 
 private:
 	jsyn::rvsdg * rvsdg_;
-	std::stack<jive::region*> regions_;
+	std::vector<std::unique_ptr<frame>> frames_;
 };
 
 static void
@@ -130,8 +195,10 @@ static void
 convert_global(const sexpr::compound & expr)
 {
 	JSYN_ASSERT(expr.kind() == "Global");
+	JSYN_ASSERT(expr.args().size() == 1);
 
-	// FIXME
+	auto name = expr.args()[0]->to_string();
+
 	JSYN_ASSERT(0 && "Undhandled");
 }
 
