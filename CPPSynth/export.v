@@ -6,9 +6,30 @@ Require Import ExportSExpr.ExportSExpr.
 
 Module x.
 
-Definition color := bool.
+(*
+Inductive Empty_set : Set :=.
+*)
+(*
+
+Inductive bool : Set :=
+  | true : bool
+  | false : bool.
+*)
+Definition neg b :=
+  match b with
+  | true => false
+  | false => true
+end.
 
 (*
+Definition id x y := x+y.
+*)
+(*
+Definition color := bool.
+
+Definition example1 (x : nat) := x*x+2*x+1.
+
+
 Definition zero := 10000.
 *)
 End x.

@@ -8,7 +8,7 @@ namespace jsyn {
 namespace definition {
 
 /**
-*
+* FIXME: write documentation
 */
 class operation final : public jive::structural_op {
 public:

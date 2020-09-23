@@ -112,4 +112,27 @@ fcttype::copy() const
 	return std::unique_ptr<jive::type>(new fcttype(*this));
 }
 
+//FIXME: to be removed
+
+dummytype::~dummytype()
+{}
+
+std::string
+dummytype::debug_string() const
+{
+	return "DUMMYTYPE";
+}
+
+bool
+dummytype::operator==(const jive::type & other) const noexcept
+{
+	return jive::is<dummytype>(other);
+}
+
+std::unique_ptr<jive::type>
+dummytype::copy() const
+{
+	return std::unique_ptr<jive::type>(new dummytype(*this));
+}
+
 }

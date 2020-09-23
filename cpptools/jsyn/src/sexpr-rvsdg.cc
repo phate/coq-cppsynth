@@ -1,4 +1,5 @@
 #include <jsyn/ir/definition.hpp>
+#include <jsyn/ir/lambda.hpp>
 #include <jsyn/ir/module.hpp>
 #include <jsyn/sexpr.hpp>
 #include <jsyn/sexpr-rvsdg.hpp>
@@ -119,80 +120,118 @@ private:
 	std::vector<std::unique_ptr<frame>> frames_;
 };
 
-static void
-convert_fix(const sexpr::compound & expr)
+std::string
+get_name(const sexpr::compound & expr)
+{
+	JSYN_ASSERT(expr.kind() == "Name");
+	JSYN_ASSERT(expr.args().size() == 1);
+
+	return expr.args()[0]->to_string();
+}
+
+static jive::output *
+convert_expr(const sexpr::compound & expr, context & ctx);
+
+static jive::output *
+convert_fix(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Fix");
 
 	//FIXME
 	JSYN_ASSERT(0 && "Unhandled");
+	return nullptr;
 }
 
-static void
-convert_letin(const sexpr::compound & expr)
+static jive::output *
+convert_letin(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "LetIn");
 
 	//FIXME
 	JSYN_ASSERT(0 && "Unhandled");
+	return nullptr;
 }
 
-static void
-convert_match(const sexpr::compound & expr)
+static jive::output *
+convert_match(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Match");
 
 	//FIXME
 	JSYN_ASSERT(0 && "Unhandled");
+	return nullptr;
 }
 
-static void
-convert_case(const sexpr::compound & expr)
+static jive::output *
+convert_case(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Case");
 
 	//FIXME
-	JSYN_ASSERT(0 && "Unhandled");
+//	JSYN_ASSERT(0 && "Unhandled");
+	return nullptr;
 }
 
-static void
-convert_lambda(const sexpr::compound & expr)
+static jive::output *
+convert_lambda(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Lambda");
+	JSYN_ASSERT(expr.args().size() == 3);
 
+	auto argname = get_name(dynamic_cast<const sexpr::compound&>(*expr.args()[0]));
+//	auto & type = dynamic_cast<const sexpr::compound&>(*decl.args()[1]);
+	auto & body = dynamic_cast<const sexpr::compound&>(*expr.args()[2]);
+
+	//FIXME: to be removed
+	auto vt = dummytype::create();
+	auto ft = fcttype::create({vt.get()}, {vt.get()});
+
+	auto lambda = lambda::node::create(ctx.region(), *dynamic_cast<const fcttype*>(ft.get()), "?");
+
+	ctx.push_region(lambda->subregion());
+	ctx.insert(argname, lambda->fctargument(0));
+
+	auto result = convert_expr(body, ctx);
+
+	ctx.pop_region();
+
+	return lambda->finalize({result});
 	//FIXME
-	JSYN_ASSERT(0 && "Unhandled");
+	//JSYN_ASSERT(0 && "Unhandled");
 }
 
-static void
-convert_app(const sexpr::compound & expr)
+static jive::output *
+convert_app(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "App");
 
 	//FIXME
-	JSYN_ASSERT(0 && "Unhandled");
+//	JSYN_ASSERT(0 && "Unhandled");
+	return nullptr;
 }
 
-static void
-convert_sort(const sexpr::compound & expr)
+static jive::output *
+convert_sort(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Sort");
 
 	//FIXME
 	JSYN_ASSERT(0 && "Unhandled");
+	return nullptr;
 }
 
-static void
-convert_local(const sexpr::compound & expr)
+static jive::output *
+convert_local(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Local");
 
 	// FIXME
 	JSYN_ASSERT(0 && "Unhandled");
+	return nullptr;
 }
 
-static void
-convert_global(const sexpr::compound & expr)
+static jive::output *
+convert_global(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Global");
 	JSYN_ASSERT(expr.args().size() == 1);
@@ -200,21 +239,26 @@ convert_global(const sexpr::compound & expr)
 	auto name = expr.args()[0]->to_string();
 
 	JSYN_ASSERT(0 && "Undhandled");
+	return nullptr;
 }
 
-static void
-convert_prod(const sexpr::compound & expr)
+static jive::output *
+convert_prod(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Prod");
 
 	// FIXME
 	JSYN_ASSERT(0 && "Unhandled");
+	return nullptr;
 }
 
-static void
+static jive::output *
 convert_expr(const sexpr::compound & expr, context & ctx)
 {
-	std::unordered_map<std::string, void(*)(const sexpr::compound&)> map({
+	static std::unordered_map<
+		std::string
+	, jive::output*(*)(const sexpr::compound&, context&)
+	> map({
 	  {"Prod",  convert_prod},  {"Global", convert_global}
 	, {"Local", convert_local}, {"Sort",   convert_sort}
 	, {"App",   convert_app},   {"Lambda", convert_lambda}
@@ -225,7 +269,7 @@ convert_expr(const sexpr::compound & expr, context & ctx)
 	if (map.find(expr.kind()) == map.end())
 		throw compilation_error("Unknown expression: " + expr.kind());
 
-	map[expr.kind()](expr);
+	return map[expr.kind()](expr, ctx);
 }
 
 static void
@@ -234,7 +278,7 @@ convert_inductive(const sexpr::compound & decl, context & ctx)
 	JSYN_ASSERT(decl.kind() == "Inductive");
 
 	// FIXME
-	JSYN_ASSERT(0 && "Unhandled");
+//	JSYN_ASSERT(0 && "Unhandled");
 }
 
 static void

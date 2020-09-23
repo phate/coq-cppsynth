@@ -181,6 +181,33 @@ private:
 	std::vector<std::unique_ptr<jive::type>> results_;
 };
 
+/** FIXME: to be removed
+*/
+class dummytype final : public jive::valuetype {
+public:
+	~dummytype() override;
+
+	constexpr
+	dummytype() noexcept
+	: jive::valuetype()
+	{}
+
+	virtual std::string
+	debug_string() const override;
+
+	virtual bool
+	operator==(const jive::type & other) const noexcept override;
+
+	virtual std::unique_ptr<jive::type>
+	copy() const override;
+
+	static std::unique_ptr<jive::type>
+	create()
+	{
+		return std::unique_ptr<jive::type>(new dummytype());
+	}
+};
+
 }
 
 #endif
