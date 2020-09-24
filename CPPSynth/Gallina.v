@@ -1,178 +1,146 @@
-Require Import 
+Require Import
   Coq.Arith.Compare_dec
   Coq.Numbers.DecimalString
   Coq.Numbers.DecimalNat
   Coq.Strings.String
   Coq.Lists.List
+  CPPSynth.CoqAstBase
   CPPSynth.SExpression
   CPPSynth.StringUtil
   CPPSynth.Exception
   CPPSynth.Monad.
 
-Module name.
-  Definition t := String.string.
+Inductive expr_t : Set :=
+  | expr_global :
+    forall (name : name.t), expr_t
+  | expr_local :
+    forall (name : name.t) (index : nat), expr_t
+  | expr_prod :
+    forall (arg : arg_t) (expr : expr_t), expr_t
+  | expr_lambda :
+    forall (arg : arg_t) (body : expr_t), expr_t
+  | expr_letin :
+    forall (name : option name.t) (term : expr_t) (term_type : expr_t) (body : expr_t), expr_t
+  | expr_case :
+    forall (num_args : nat) (case_term : expr_t) (match_term : expr_t) (branches : exprlist_t), expr_t
+  | expr_app :
+    forall (fn : expr_t) (arg : expr_t), expr_t
+  | expr_fixpoint :
+    forall (index : nat) (fns : fixlist_t), expr_t
 
-  Definition to_string (name : t) : String.string :=
-    name.
+with exprlist_t : Set :=
+  | exprlist_nil : exprlist_t
+  | exprlist_cons : forall (e : expr_t) (l : exprlist_t), exprlist_t
 
-  Definition eqb (x y : t) : bool :=
-    String.eqb x y.
+with fixlist_t : Set :=
+  | fixlist_nil : fixlist_t
+  | fixlist_cons : forall (f : fixfn_t) (l : fixlist_t), fixlist_t
 
-  Definition eq_dec : forall (x y : t), { x = y } + { x <> y }.
-    intros x y ; case_eq (eqb x y) ; intros H.
-      apply eqb_eq in H ; left ; auto.
-      apply eqb_neq in H ; right ; auto.
-  Defined.
+with fixfn_t : Set :=
+  | fixfn : forall (name : name.t) (args : args_t) (type : expr_t) (body : expr_t), fixfn_t
 
-  Definition from_sexpr_literal (e : sexpr.t) : option String.string :=
-    match e with
-      | sexpr.terminal arg => Some arg
-      | _ => None
-    end.
+with args_t : Set :=
+  | args_nil : args_t
+  | args_cons : forall (a : arg_t) (l : args_t), args_t
 
-  (** Given an s-expression of form ("Name", x) with x being a terminal
-  symbol, returns x. *)
-  Definition from_sexpr (e : sexpr.t) : option String.string :=
-    match e with
-      | sexpr.expr "Name" (sexpr.list_cons e' sexpr.list_nil) => from_sexpr_literal e'
-      | _ => None
-    end.
+with arg_t : Set :=
+  | arg_named : forall (name : name.t) (type : expr_t), arg_t
+  | arg_anonymous : forall (type : expr_t), arg_t
+.
 
-  Definition uniquify (name : t) (l : list t) : t :=
-    let n := StringUtil.unique_nat_suffix name 0 l in
-    (name ++ StringUtil.make_underscores n) % string.
+Definition arg_make (name : option string) (type : expr_t) : arg_t :=
+  match name with
+    | Some name => arg_named name type
+    | None => arg_anonymous type
+  end.
 
-  Lemma uniquify_spec :
-      forall name l,
-      ~ In (uniquify name l) l.
-    unfold uniquify ; intros ; apply StringUtil.unique_nat_suffix_spec with (k := 0) ; auto.
-  Qed.
+Definition sexpr_args_split3 (args : sexpr.list_t) : ExceptionOr (sexpr.t * sexpr.t * sexpr.t) :=
+  match args with
+    | sexpr.list_cons arg1 (sexpr.list_cons arg2 (sexpr.list_cons arg3 sexpr.list_nil)) =>
+      Okay (arg1, arg2, arg3)
+    | _ => Exception "ParseError" "Expected 3 arguments"
+  end.
 
-  (* generate a renaming function that remaps every name in "names" to
-  a new name if it would otherwise collide with "taboo" *)
-  Fixpoint make_rename_fn (names : list t) (taboo : list t) : (t -> t) :=
-    match names with
-      | nil => @id t
-      | n :: names' =>
-        let new_n :=
-          if In_dec eq_dec n taboo
-          then uniquify n taboo
-          else n in
-        let fn := make_rename_fn names' (new_n :: taboo) in
-        (fun (x : t) => if eqb x n then new_n else fn x)
-    end.
+Definition sexpr_single_lit (args : sexpr.list_t) : ExceptionOr string :=
+  match args with
+    | sexpr.list_cons arg sexpr.list_nil =>
+      match arg with
+        | sexpr.terminal s => Okay s
+        | _ => Exception "ParseError" "Expected single literal"
+      end
+    | _ => Exception "ParseError" "Expected single literal"
+  end.
 
-End name.
+Definition sexpr_parse_name (e : sexpr.t) : ExceptionOr (option string) :=
+  match e with
+    | sexpr.terminal t => Exception "ParseError" "Expected name expresion"
+    | sexpr.expr kind args =>
+      if string_dec kind "Anonymous" then
+        return_ _ None
+      else if string_dec kind "Name" then
+          do name <-- sexpr_single_lit args ;
+          return_ _ (Some name)
+      else
+        Exception "ParseError" "Expected 'Name' or 'Anonymous'"
+  end.
 
-Module identifier.
-  Inductive t : Set :=
-    | local : name.t -> t
-    | global : name.t -> t.
-
-  Definition to_string (id : t) : String.string :=
-    match id with
-      | local n => n
-      | global n => n
-    end.
-
-  Definition eqb (x y : t) : bool :=
-    match x, y return bool with
-      | local x, local y => String.eqb x y
-      | global x, global y => String.eqb x y
-      | _, _ => false
-    end.
-End identifier.
-
-
-Module expr.
-  Inductive t : Set :=
-    | global :
-      forall (name : name.t), t
-    | local :
-      forall (name : name.t) (index : nat), t
-    | product : 
-      forall (argname : option String.string) (argtype : t) (expr : t), t
-    | app :
-      forall (fn : t) (arg : t), t.
-
-  (** Generic subterm visitor: check term whether we want to descend,
-  push/pop state on descending and transform bottom-up. *)
-  Fixpoint generic_visit
-      (state_t : Set) 
-      (down : t -> state_t -> bool * state_t)
-      (xform : t -> state_t -> t * state_t)
-      (up : t -> state_t -> state_t)
-      (e : t)
-      (state : state_t)
-      { struct e }
-      : t * state_t :=
-    let (descend, state) := down e state in
-    if descend then
-      let (e, state) := match e with
-        | product argname argtype body =>
-          let (argtype, state) := generic_visit _ down xform up argtype state in
-          let (body, state) := generic_visit _ down xform up body state in
-          (product argname argtype body, state)
-        | app fn arg =>
-          let (fn, state) := generic_visit _ down xform up fn state in
-          let (arg, state) := generic_visit _ down xform up arg state in
-          (app fn arg, state)
-        | _ => (e, state)
-      end in
-      let (e, state) := xform e state in
-      let state := up e state in
-      (e, state)
-    else
-      (e, state).
-
-  Definition sexpr_args_split3 (args : sexpr.list_t) : ExceptionOr (sexpr.t * sexpr.t * sexpr.t) :=
-    match args with
-      | sexpr.list_cons arg1 (sexpr.list_cons arg2 (sexpr.list_cons arg3 sexpr.list_nil)) =>
-        Okay (arg1, arg2, arg3)
-      | _ => Exception "ParseError" "Expected 3 arguments"
-    end.
-
-  Definition sexpr_single_lit (args : sexpr.list_t) : ExceptionOr string :=
-    match args with
-      | sexpr.list_cons arg sexpr.list_nil =>
-        match arg with
-          | sexpr.terminal s => Okay s
-          | _ => Exception "ParseError" "Expected single literal"
+Fixpoint from_sexpr (e : sexpr.t) : ExceptionOr expr_t :=
+  match e with
+    | sexpr.terminal t => Exception "ParseError" "Compound expression expected"
+    | sexpr.expr kind args =>
+      if string_dec kind "Sort" then
+        do name <-- sexpr_single_lit args ;
+        return_ _ (expr_global name)
+      else if string_dec kind "Global" then
+        do name <-- sexpr_single_lit args ;
+        return_ _ (expr_global name)
+      else if string_dec kind "Local" then
+        do name <-- sexpr_single_lit args ;
+        return_ _ (expr_local name 0) (* XXX: correct index *)
+      else if string_dec kind "Prod" then
+        match args with
+          | sexpr.list_cons argname (sexpr.list_cons argtype (sexpr.list_cons body sexpr.list_nil)) =>
+            do argname' <-- sexpr_parse_name argname ;
+            do argtype' <-- from_sexpr argtype ;
+            do body' <-- from_sexpr body ;
+            return_ _ (expr_prod (arg_make argname' argtype') body')
+          | _ => Exception "ParseError" "Product requires 3 arguments"
         end
-      | _ => Exception "ParseError" "Expected single literal"
-    end.
-
-  Fixpoint from_sexpr (e : sexpr.t) : ExceptionOr t :=
-    match e with
-      | sexpr.terminal t => Exception "ParseError" "Compound expression expected"
-      | sexpr.expr kind args =>
-        if string_dec kind "Sort" then
-          do name <-- sexpr_single_lit args ;
-          return_ _ (global name)
-        else if string_dec kind "Global" then
-          do name <-- sexpr_single_lit args ;
-          return_ _ (global name)
-        else if string_dec kind "Local" then
-          do name <-- sexpr_single_lit args ;
-          return_ _ (local name 0)
-        else if string_dec kind "Prod" then
-          match args with
-            | sexpr.list_cons argname (sexpr.list_cons argtype (sexpr.list_cons body sexpr.list_nil)) =>
-              do argtype' <-- from_sexpr argtype ;
-              do body' <-- from_sexpr body ;
-              return_ _ (product None argtype' body')
-            | _ => Exception "ParseError" "Product requires 3 arguments"
-          end
-        else
-          Exception "ParseError" ("Unknown kind " ++ kind)
-    end.
-
-End expr.
+      else if string_dec kind "Lambda" then
+        match args with
+          | sexpr.list_cons argname (sexpr.list_cons argtype (sexpr.list_cons body sexpr.list_nil)) =>
+            do argname' <-- sexpr_parse_name argname ;
+            do argtype' <-- from_sexpr argtype ;
+            do body' <-- from_sexpr body ;
+            return_ _ (expr_lambda (arg_make argname' argtype') body')
+          | _ => Exception "ParseError" "Lambda requires 3 arguments"
+        end
+      else if string_dec kind "LetIn" then
+        match args with
+          | sexpr.list_cons name (sexpr.list_cons term (sexpr.list_cons termtype (sexpr.list_cons body sexpr.list_nil))) =>
+            do name' <-- sexpr_parse_name name ;
+            do term' <-- from_sexpr term ;
+            do termtype' <-- from_sexpr termtype ;
+            do body' <-- from_sexpr body ;
+            return_ _ (expr_letin name' term' termtype' body')
+          | _ => Exception "ParseError" "LetIn requires 4 arguments"
+        end
+      else if string_dec kind "App" then
+        match args with
+          | sexpr.list_cons fn (sexpr.list_cons arg sexpr.list_nil) =>
+            do fn' <-- from_sexpr fn ;
+            do arg' <-- from_sexpr arg ;
+            return_ _ (expr_app fn' arg')
+          | _ => Exception "ParseError" "App requires 2 arguments"
+        end
+      else
+        Exception "ParseError" ("Unknown kind " ++ kind)
+  end.
 
 Module inductive_constructor.
   Inductive t :=
     | make :
-      forall (name : string) (type : expr.t), t.
+      forall (name : string) (type : expr_t), t.
 
   Definition from_sexpr (e : sexpr.t) : ExceptionOr t :=
     match e with
@@ -181,7 +149,7 @@ Module inductive_constructor.
         if string_dec kind "Constructor" then
           match args with
             | sexpr.list_cons (sexpr.terminal name) (sexpr.list_cons type sexpr.list_nil) =>
-              do type' <-- expr.from_sexpr type ;
+              do type' <-- from_sexpr type ;
               return_ _ (make name type')
             | _ => Exception "ParseError" "Product requires 3 arguments"
           end
@@ -200,7 +168,7 @@ Module inductive_constructor.
         | sexpr.list_nil => Okay result
       end) l result.
 
-  Definition type (this : t) : expr.t := let (name, type) := this in type.
+  Definition type (this : t) : expr_t := let (name, type) := this in type.
   Definition name (this : t) : string := let (name, type) := this in name.
 
 End inductive_constructor.
@@ -209,7 +177,7 @@ Module one_inductive.
   Inductive t : Set :=
     | make :
       forall (name : string),
-      forall (type : expr.t),
+      forall (type : expr_t),
       forall (cons : list inductive_constructor.t),
       t.
 
@@ -217,7 +185,7 @@ Module one_inductive.
     match l with
       | sexpr.list_cons (sexpr.terminal name) (sexpr.list_cons type constrs) =>
         let name' := name in
-        do type' <-- expr.from_sexpr type ;
+        do type' <-- from_sexpr type ;
         do constrs' <-- inductive_constructor.from_sexpr_list constrs ;
         return_ _ (make name type' constrs')
       | _ => Exception "ParseError" "OneInductive needs name, type and constructors"
