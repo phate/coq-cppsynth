@@ -20,3 +20,5 @@ CPPSynth/SExpression.v
 CPPSynth/StateMonad.v
 CPPSynth/StringUtil.v
 CPPSynth/export.v
+CPPSynth/XFEnv.v
+CPPSynth/XFInductive.v
