@@ -273,8 +273,9 @@ let handle_export (qid : Libnames.qualid) : unit =
   with
     | Not_found ->
       try
-        (* let mp = Nametab.locate_modtype qid in *)
-        Feedback.msg_notice (Pp.strbrk "modtype")
+        let mp = Nametab.locate_modtype qid in
+        let mb = Global.lookup_module mp in
+        Feedback.msg_notice (Pp.strbrk (build_modsig_sexpr mb.mod_type))
       with
         | Not_found ->
           try
