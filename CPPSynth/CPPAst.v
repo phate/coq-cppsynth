@@ -907,8 +907,4 @@ Definition tplformarg_to_tplarg (this : tplformarg_t) : tplarg_t :=
   end.
 
 Fixpoint tplformargs_to_tplargs (this : tplformargs_t ) : tplargs_t :=
-  match this with
-    | tplformargs_nil => tplargs_nil
-    | tplformargs_cons arg args =>
-      tplargs_cons (tplformarg_to_tplarg arg) (tplformargs_to_tplargs args)
-  end.
+  from_list (map tplformarg_to_tplarg (to_list this)).
