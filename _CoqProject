@@ -6,8 +6,10 @@ src/export_sexpr_plugin.mlg
 theories/ExportSExpr.v
 CPPSynth/CPPAst.v
 CPPSynth/CPPAstBase.v
+CPPSynth/CPPAstHelper.v
 CPPSynth/CPPAstSerialize.v
 CPPSynth/CPPAstVisit.v
+CPPSynth/CoqAstBase.v
 CPPSynth/Gallina.v
 CPPSynth/Generate.v
 CPPSynth/Exception.v
