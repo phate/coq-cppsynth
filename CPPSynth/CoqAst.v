@@ -54,23 +54,6 @@ Definition arg_make (name : option string) (type : expr_t) : arg_t :=
     | None => arg_anonymous type
   end.
 
-Definition sexpr_args_split3 (args : sexpr.list_t) : ExceptionOr (sexpr.t * sexpr.t * sexpr.t) :=
-  match args with
-    | sexpr.list_cons arg1 (sexpr.list_cons arg2 (sexpr.list_cons arg3 sexpr.list_nil)) =>
-      Okay (arg1, arg2, arg3)
-    | _ => Exception "ParseError" "Expected 3 arguments"
-  end.
-
-Definition sexpr_single_lit (args : sexpr.list_t) : ExceptionOr string :=
-  match args with
-    | sexpr.list_cons arg sexpr.list_nil =>
-      match arg with
-        | sexpr.terminal s => Okay s
-        | _ => Exception "ParseError" "Expected single literal"
-      end
-    | _ => Exception "ParseError" "Expected single literal"
-  end.
-
 Definition sexpr_parse_name (e : sexpr.t) : ExceptionOr (option string) :=
   match e with
     | sexpr.terminal t => Exception "ParseError" "Expected name expresion"
@@ -78,8 +61,9 @@ Definition sexpr_parse_name (e : sexpr.t) : ExceptionOr (option string) :=
       if string_dec kind "Anonymous" then
         return_ _ None
       else if string_dec kind "Name" then
-          do name <-- sexpr_single_lit args ;
-          return_ _ (Some name)
+        do arg <-- sexpr.split1 args ;
+        do name <-- sexpr.as_terminal arg ;
+        return_ _ (Some name)
       else
         Exception "ParseError" "Expected 'Name' or 'Anonymous'"
   end.
@@ -89,14 +73,21 @@ Fixpoint from_sexpr (e : sexpr.t) : ExceptionOr expr_t :=
     | sexpr.terminal t => Exception "ParseError" "Compound expression expected"
     | sexpr.expr kind args =>
       if string_dec kind "Sort" then
-        do name <-- sexpr_single_lit args ;
+        do arg <-- sexpr.split1 args ;
+        do name <-- sexpr.as_terminal arg ;
         return_ _ (expr_global name)
       else if string_dec kind "Global" then
-        do name <-- sexpr_single_lit args ;
+        do arg <-- sexpr.split1 args ;
+        do name <-- sexpr.as_terminal arg ;
         return_ _ (expr_global name)
       else if string_dec kind "Local" then
-        do name <-- sexpr_single_lit args ;
-        return_ _ (expr_local name 0) (* XXX: correct index *)
+        do args <-- sexpr.split2 args ;
+        do name <-- sexpr.as_terminal (fst args) ;
+        do index <-- sexpr.as_terminal (snd args) ;
+        match nat_of_string index with
+          | Some index => return_ _ (expr_local name index)
+          | None => Exception "ParseError" "Expected integer index"
+        end
       else if string_dec kind "Prod" then
         match args with
           | sexpr.list_cons argname (sexpr.list_cons argtype (sexpr.list_cons body sexpr.list_nil)) =>

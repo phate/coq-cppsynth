@@ -3,9 +3,11 @@ Require Import
   Coq.Strings.String
   Coq.Lists.List
   CPPSynth.Exception
+  CPPSynth.ListClass
   CPPSynth.Monad
   CPPSynth.StringUtil
   CPPSynth.StateMonad.
+
 
 (** Serialize a terminal symbol. *)
 Definition serialize_terminal (s : String.string) : String.string :=
@@ -13,6 +15,87 @@ Definition serialize_terminal (s : String.string) : String.string :=
     | EmptyString => "\0" % string
     | _ => StringUtil.escape_string s
   end.
+
+(** 
+
+S-expressions
+
+An S-expression has the form: 
+  s-expr := terminal | "(" terminal [s-expr...] ")"
+where terminal is an identifier (any character except whitespace
+and braces) and may nest arbitrarily. Conventionally, the
+terminal at the head of an s-expr specifies the type / semantic
+of the expression.
+
+**)
+Module sexpr.
+
+  Inductive t : Set :=
+    | terminal : forall (id : String.string), t
+    | expr : forall (kind : String.string) (args : list_t), t
+  with list_t : Set :=
+    | list_nil : list_t
+    | list_cons : t -> list_t -> list_t.
+
+  #[refine] Instance sexpr_list : ListClass t list_t :=
+  {|
+    to_list := list_t_rec (fun _ => list t) nil (fun n nl l => cons n l) ;
+    from_list := list_rec (fun _ => list_t) list_nil (fun n l nl => list_cons n nl)
+  |}.
+  Proof.
+    induction l; simpl ; congruence.
+    induction l; simpl ; congruence.
+  Defined.
+
+  (** Recursively append sexpr to given string *)
+  Fixpoint app_str (this : t) (state : String.string) : String.string :=
+    match this with
+      | terminal s => String.append state (serialize_terminal s)
+      | expr kind exprs =>
+        let state := String.append state "("%string in
+        let state := String.append state (serialize_terminal kind) in
+        let state := list_app_str exprs state in
+        let state := String.append state ")"%string in
+        state
+    end
+  (** Recursively append sexpr list to given string *)
+  with list_app_str (this : list_t) (state : String.string) : String.string :=
+    match this with
+      | list_nil => state
+      | list_cons e exprs =>
+        let state := String.append state " " in
+        let state := app_str e state in
+        list_app_str exprs state
+    end.
+
+  Definition to_string (this : t) : String.string :=
+      app_str this "".
+
+  Definition as_terminal (e : t) : ExceptionOr String.string :=
+    match e with
+      | terminal id => Okay id
+      | _ => Exception "ParseError" "expected literal"
+    end.
+
+  Definition split1 (l : list_t) : ExceptionOr t :=
+    match l with
+      | list_cons e list_nil => Okay e
+      | _ => Exception "ParseError" "expected 1 argument"
+    end.
+
+  Definition split2 (l : list_t) : ExceptionOr (t * t) :=
+    match l with
+      | list_cons e1 (list_cons e2 list_nil) => Okay (e1, e2)
+      | _ => Exception "ParseError" "expected 2 argumens"
+    end.
+
+  Definition split3 (l : list_t) : ExceptionOr (t * t * t) :=
+    match l with
+      | list_cons e1 (list_cons e2 (list_cons e3 list_nil)) => Okay (e1, e2, e3)
+      | _ => Exception "ParseError" "expected 3 argumens"
+    end.
+
+End sexpr.
 
 (** 
 Tokenizer for S-Expression parser
@@ -156,116 +239,6 @@ Definition sexpr_serialize_tokens (tokens : list sexpr_tokenizer.token.t) : stri
       tokens (need_sep, s) in
   s.
 
-(** 
-
-S-expressions
-
-An S-expression has the form: 
-  s-expr := terminal | "(" terminal [s-expr...] ")"
-where terminal is an identifier (any character except whitespace
-and braces) and may nest arbitrarily. Conventionally, the
-terminal at the head of an s-expr specifies the type / semantic
-of the expression.
-
-**)
-Module sexpr.
-
-  Inductive t : Set :=
-    | terminal : forall (id : String.string), t
-    | expr : forall (kind : String.string) (args : list_t), t
-  with list_t : Set :=
-    | list_nil : list_t
-    | list_cons : t -> list_t -> list_t.
-
-  Fixpoint list_from (l : list t) : list_t :=
-    match l with
-      | nil => list_nil
-      | cons e l => list_cons e (list_from l)
-    end.
-
-  Fixpoint list_app (e : t) (l : list_t) : list_t :=
-    match l with
-      | list_nil => list_cons e list_nil
-      | list_cons x l => list_cons x (list_app e l)
-    end.
-
-  (** Recursively append sexpr to given string *)
-  Fixpoint app_str (this : t) (state : String.string) : String.string :=
-    match this with
-      | terminal s => String.append state (serialize_terminal s)
-      | expr kind exprs =>
-        let state := String.append state "("%string in
-        let state := String.append state (serialize_terminal kind) in
-        let state := list_app_str exprs state in
-        let state := String.append state ")"%string in
-        state
-    end
-  (** Recursively append sexpr list to given string *)
-  with list_app_str (this : list_t) (state : String.string) : String.string :=
-    match this with
-      | list_nil => state
-      | list_cons e exprs =>
-        let state := String.append state " " in
-        let state := app_str e state in
-        list_app_str exprs state
-    end.
-
-  Definition to_string (this : t) : String.string :=
-      app_str this "".
-
-(*
-Definition sexpr_from_list (l : list sexpr_t) : ExceptionOr sexpr_t :=
-  match l with
-    | head :: tail =>
-      match head with
-        | sexpr_terminal s => Okay (sexpr_expr s (sexprlist_from_list tail))
-        | _ => Exception "ParseError"%string "Leading term of s-expr must be a terminal."
-      end
-    | _ => Exception "ParseError"%string "s-expr cannot be empty."
-  end.
-*)
-
-End sexpr.
-
-(*
-Module sexpr_parse_stack.
-  (** Nesting stack of partially parsed s-expressions.
-      During parsing, the depth of the stack corresponds to the
-      number of opening "(" and not yet closed ")" s-expressions
-      encountered at parse point. At each level, it represents
-      the partially finished s-expression sequences already
-      completed to the left of the parse point. The stack is
-      "inverted" with respect to s-expression nesting: the lowest
-      nesting level is at the top of the stack. **)
-  Inductive t : Set :=
-    | make : forall (layers : list sexpr.t), t.
-
-  (** New stack with first layer initialized. **)
-  Definition new : t := make nil.
-
-  (** Push a new empty layer to stack. **)
-  Definition push (head : String.string) (args : sexpr.list_t) (this : t) : t :=
-    make None sexpr.list_nil (layer_cons
-    layer nil (Some stack).
-
-  (** Append s-expression to top layer of stack. **)
-  Definition app (e : sexpr.t) (stack : t) : t :=
-    match stack with
-      | layer exprs stack => layer (exprs ++ e :: nil) stack
-    end.
-
-  (** Pop top-most layer of stack, try to form it into a proper
-      s-expression, and append it to the next lower layer of stack
-      (which now becomes the top layer). **)
-  Definition pop (stack : t) : ExceptionOr t :=
-    match stack with
-      | layer exprs (Some stack) =>
-        do e <-- sexpr._from_proto_exprs exprs ;
-        return_ _ (app e stack)
-      | empty => Exception "ParseError" "Empty expression stack"
-    end.
-End sexpr_parse_stack.
-*)
 
 Module sexpr_parser.
   Inductive state_kind : Set :=
@@ -299,7 +272,7 @@ Module sexpr_parser.
             match stack with
               | (make_layer t_head t_args) :: (make_layer n_head n_args) :: stack =>
                 let e := sexpr.expr t_head t_args in
-                let n_args := sexpr.list_app e n_args in
+                let n_args := app n_args (sexpr.list_cons e sexpr.list_nil) in
                 let stack := (make_layer n_head n_args) :: stack in
                 make EXPRESSION stack
               | _ => make ERROR nil
@@ -308,7 +281,7 @@ Module sexpr_parser.
             match stack with
               | (make_layer n_head n_args) :: stack =>
                 let e := sexpr.terminal id in
-                let n_args := sexpr.list_app e n_args in
+                let n_args := app n_args (sexpr.list_cons e sexpr.list_nil) in
                 let stack := (make_layer n_head n_args) :: stack in
                 make EXPRESSION stack
               | _ => make ERROR nil
@@ -380,16 +353,16 @@ Example test_expr1_to_string
     : let expr1 :=
         sexpr.expr 
           "Definition"
-          (sexpr.list_from (sexpr.terminal "foo" :: sexpr.terminal "bar" :: nil)) in
+          (from_list (sexpr.terminal "foo" :: sexpr.terminal "bar" :: nil)) in
       sexpr.to_string expr1 = "(Definition foo bar)"%string
   := eq_refl.
 
 Example test_string1_to_expr
     : sexpr_from_string ("(Definition abc (foo bar))"%string) = 
       Some
-        (sexpr.expr "Definition" (sexpr.list_from (
+        (sexpr.expr "Definition" (from_list (
           sexpr.terminal "abc" ::
-          sexpr.expr "foo" (sexpr.list_from (sexpr.terminal "bar" :: nil)) :: nil
+          sexpr.expr "foo" (from_list (sexpr.terminal "bar" :: nil)) :: nil
         )))
   := eq_refl.
 
@@ -401,8 +374,8 @@ Example test_parse_empty_terminal
 Example test_parse_escape
     : sexpr_from_string ("(Def\(ini\)\ tion abc (foo bar))"%string) = 
       Some
-        (sexpr.expr "Def(ini) tion" (sexpr.list_from (
+        (sexpr.expr "Def(ini) tion" (from_list (
           sexpr.terminal "abc" ::
-          sexpr.expr "foo" (sexpr.list_from (sexpr.terminal "bar" :: nil)) :: nil
+          sexpr.expr "foo" (from_list (sexpr.terminal "bar" :: nil)) :: nil
         )))
   := eq_refl.

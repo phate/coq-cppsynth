@@ -47,7 +47,13 @@ End char.
 
 Definition string_of_nat (n : nat) : string :=
   let d := Nat.to_uint n in
-  NilZero.string_of_uint d.
+  NilEmpty.string_of_uint d.
+
+Definition nat_of_string (s : string) : option nat :=
+  match NilEmpty.uint_of_string s with
+    | Some d => Some (Nat.of_uint d)
+    | None => None
+  end.
 
 Theorem string_app_ex :
     forall (c : char.t) (s : string),
