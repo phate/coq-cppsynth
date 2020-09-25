@@ -5,7 +5,7 @@ Require Import
   CPPSynth.CPPAstBase
   CPPSynth.CPPAstHelper
   CPPSynth.CoqAstBase
-  CPPSynth.Gallina
+  CPPSynth.CoqAst
   CPPSynth.ListClass.
 
 

@@ -7,7 +7,7 @@ Require Import
   CPPSynth.SExpression
   CPPSynth.StringUtil
   CPPSynth.Exception
-  CPPSynth.Gallina
+  CPPSynth.CoqAst
   CPPSynth.CPPAst
   CPPSynth.CPPAstBase
   CPPSynth.CPPAstSerialize

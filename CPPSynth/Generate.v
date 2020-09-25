@@ -7,7 +7,7 @@ Require Import
   CPPSynth.SExpression
   CPPSynth.StringUtil
   CPPSynth.Exception
-  CPPSynth.Gallina
+  CPPSynth.CoqAst
   CPPSynth.CoqAstBase
   CPPSynth.CPPAst
   CPPSynth.CPPAstBase
@@ -18,10 +18,10 @@ Require Import
   CPPSynth.XFEnv
   CPPSynth.XFInductive.
 
-Definition product_unfold (e : Gallina.expr_t) : list (option string * Gallina.expr_t) * Gallina.expr_t :=
+Definition product_unfold (e : CoqAst.expr_t) : list (option string * CoqAst.expr_t) * CoqAst.expr_t :=
   let head := nil in
-  (fix loop (e : Gallina.expr_t) (head : list (option string * Gallina.expr_t))
-      : list (option string * Gallina.expr_t) * Gallina.expr_t :=
+  (fix loop (e : CoqAst.expr_t) (head : list (option string * CoqAst.expr_t))
+      : list (option string * CoqAst.expr_t) * CoqAst.expr_t :=
     match e with
       | expr_prod arg body =>
         let (argname, argtype) := match arg with
@@ -35,11 +35,11 @@ Definition product_unfold (e : Gallina.expr_t) : list (option string * Gallina.e
     end) e head.
 
 (* make choice of prefix name configurable *)
-Definition product_named_unfold (e : Gallina.expr_t) : list (string * Gallina.expr_t) * Gallina.expr_t :=
+Definition product_named_unfold (e : CoqAst.expr_t) : list (string * CoqAst.expr_t) * CoqAst.expr_t :=
   let head := nil in
   let index := 0 in
-  (fix loop (e : Gallina.expr_t) (index : nat) (head : list (string * Gallina.expr_t))
-      : list (string * Gallina.expr_t) * Gallina.expr_t :=
+  (fix loop (e : CoqAst.expr_t) (index : nat) (head : list (string * CoqAst.expr_t))
+      : list (string * CoqAst.expr_t) * CoqAst.expr_t :=
     match e with
       | expr_prod arg body =>
         let (name, argtype) := match arg with
@@ -53,7 +53,7 @@ Definition product_named_unfold (e : Gallina.expr_t) : list (string * Gallina.ex
     end) e index head.
 
 Fixpoint collect_tplformargs_from_product
-    (e : Gallina.expr_t) : tplformargs_t :=
+    (e : CoqAst.expr_t) : tplformargs_t :=
   match e with
     | expr_prod arg body =>
       let (name, argtype) := match arg with
@@ -96,7 +96,7 @@ Definition constructor_reprclass_name (cons : inductive_constructor.t) : string 
   ((inductive_constructor.name cons) ++ "_repr").
 
 Definition constructor_reprclass_members (cons : inductive_constructor.t)
-    : list (string * Gallina.expr_t) :=
+    : list (string * CoqAst.expr_t) :=
   fst (product_named_unfold (inductive_constructor.type cons)).
 
 Definition make_constructor_repr_class
@@ -113,17 +113,17 @@ Definition make_constructor_repr_class
   let base_cls_type := typeexpr_id base_cls_id in
 
   let member_decls := map
-    (fun (mem : string * Gallina.expr_t) =>
+    (fun (mem : string * CoqAst.expr_t) =>
       let (name, e) := mem in
       let type := env.to_type e environ in
       decl_simple declspec.none type (idexpr_id scope_none name) attrspec.none) members in
   let init_formal_args := map
-    (fun (mem : string * Gallina.expr_t) =>
+    (fun (mem : string * CoqAst.expr_t) =>
       let (name, e) := mem in
       let type := env.to_type e environ in
       funarg_named type (name ++ "_init")) members in
   let initializers := map
-    (fun (mem : string * Gallina.expr_t) =>
+    (fun (mem : string * CoqAst.expr_t) =>
       let (name, e) := mem in
       cinit_make
         (idexpr_id scope_none name)
@@ -164,7 +164,7 @@ Definition make_constructor_repr_class
               (stmt_return (expr_id (idexpr_id scope_none "false")) :: nil))) ::
           nil))) in
   let member_compare := map
-    (fun (mem : string * Gallina.expr_t) =>
+    (fun (mem : string * CoqAst.expr_t) =>
       let (name, e) := mem in
       let id := idexpr_id scope_none name in
       expr_binop binop.eq (expr_id id) (expr_memdot (expr_id (idexpr_id scope_none "other")) id))
@@ -247,10 +247,10 @@ Fixpoint make_match_constructors
       stmt_ifelse cond body sub
   end.
 
-Definition make_name_type_pairs (args : list (option string * Gallina.expr_t)) (environ : env.t)
+Definition make_name_type_pairs (args : list (option string * CoqAst.expr_t)) (environ : env.t)
     : list (string * typeexpr_t) :=
   map
-    (fun (ca : option string * Gallina.expr_t) =>
+    (fun (ca : option string * CoqAst.expr_t) =>
       let (n, e) := ca in
       let type := env.to_type e environ in
       let name := match n with
@@ -282,7 +282,7 @@ Definition make_match_fntype
       (* arguments to first constructor *)
       let pre_callargs := fst (product_unfold (inductive_constructor.type first_constructor)) in
       (* turn them into "declval" constructs *)
-      let callargs := map (fun (ca : option string * Gallina.expr_t) =>
+      let callargs := map (fun (ca : option string * CoqAst.expr_t) =>
         let (_, e) := ca in
         let type := env.to_type e environ in
         mk_declval_of (mk_constref_of type)) pre_callargs in
@@ -294,18 +294,18 @@ Definition make_match_fntype
   end.
 
 Definition make_inductive_cons_factory_fn
-    (ind_clsname : string) (consname : string) (cons_args : list (string * Gallina.expr_t))
+    (ind_clsname : string) (consname : string) (cons_args : list (string * CoqAst.expr_t))
     : decl_t :=
   let environ := env.empty in
   let formal_args :=
     map
-      (fun (c : string * Gallina.expr_t) =>
+      (fun (c : string * CoqAst.expr_t) =>
         let (name, e) := c in
         funarg_named (env.to_type e environ) name)
       cons_args in
   let args :=
     map
-      (fun (c : string * Gallina.expr_t) =>
+      (fun (c : string * CoqAst.expr_t) =>
         let (name, e) := c in
         mk_move_of (expr_id (idexpr_id scope_none name)))
       cons_args in
@@ -460,7 +460,7 @@ Definition oind_convert (oi : one_inductive.t)
         false)
       (idexpr_operator scope_none (genop.binary binop.eq))
       attrspec.none
-      (funbody_stmts 
+      (funbody_stmts
         (from_list nil)
         (from_list
           (stmt_return
@@ -507,7 +507,7 @@ Definition oind_gen_fwddecl (r : oind_cpp_impl.t) : decl_t :=
   let d := decl_class_fwd (mk_sid name) in
   decl_maybe_template tpl d.
 
-Definition oind_gen_clsdecl (r : oind_cpp_impl.t) : decl_t := 
+Definition oind_gen_clsdecl (r : oind_cpp_impl.t) : decl_t :=
   let (tplformargs, clsname, clsdecls) := r in
   class_strip_member_defs tplformargs clsname clsdecls.
 
@@ -543,7 +543,7 @@ Example oiX :=
   one_inductive.make "X" (expr_prod (arg_named "T"%string sort_set) sort_set) (
     (* constructors *)
     inductive_constructor.make "X0"
-      (expr_prod 
+      (expr_prod
         (arg_named "t"%string (expr_local "T"%string 1))
         (expr_app (expr_global "X"%string) (expr_local "T"%string 1))) ::
     inductive_constructor.make "X1"

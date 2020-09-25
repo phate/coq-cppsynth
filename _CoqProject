@@ -10,7 +10,7 @@ CPPSynth/CPPAstHelper.v
 CPPSynth/CPPAstSerialize.v
 CPPSynth/CPPAstVisit.v
 CPPSynth/CoqAstBase.v
-CPPSynth/Gallina.v
+CPPSynth/CoqAst.v
 CPPSynth/Generate.v
 CPPSynth/Exception.v
 CPPSynth/ListClass.v
