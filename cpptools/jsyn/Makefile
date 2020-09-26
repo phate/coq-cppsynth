@@ -2,8 +2,10 @@ LIBJSYN_SRC = \
 	src/sexpr.cc \
 	src/sexpr-rvsdg.cc \
 	\
+	src/ir/case.cc \
 	src/ir/definition.cc \
 	src/ir/lambda.cc \
+	src/ir/match.cc \
 	src/ir/module.cc \
 	src/ir/phi.cc \
 	src/ir/types.cc \

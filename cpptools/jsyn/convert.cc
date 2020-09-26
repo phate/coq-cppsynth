@@ -36,13 +36,14 @@ int main(int argc, char ** argv)
 
 	auto e = parser.finalize();
 
-//	auto rvsdg = convert_sexpr(*e);
-//	jive::view(rvsdg->graph(), stdout);
-
 	if (e) {
 		std::string s;
 		format_sexpr(*e, "", s);
 		std::cout << s << "\n";
 // 		std::cout << e->to_string() << "\n";
 	}
+
+	auto rvsdg = convert_sexpr(*e);
+	jive::view(rvsdg->graph(), stdout);
+
 }

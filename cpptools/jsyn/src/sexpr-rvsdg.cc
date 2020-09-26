@@ -1,5 +1,7 @@
+#include <jsyn/ir/case.hpp>
 #include <jsyn/ir/definition.hpp>
 #include <jsyn/ir/lambda.hpp>
+#include <jsyn/ir/match.hpp>
 #include <jsyn/ir/module.hpp>
 #include <jsyn/sexpr.hpp>
 #include <jsyn/sexpr-rvsdg.hpp>
@@ -105,7 +107,8 @@ public:
 				return (*it)->lookup(name);
 		}
 
-		auto graph = frames_[0]->region()->graph();
+		JSYN_ASSERT(0 && "FIXME: implement");
+//		auto graph = frames_[0]->region()->graph();
 		//auto output = graph->add_import(name, );
 	}
 
@@ -121,7 +124,7 @@ private:
 };
 
 std::string
-get_name(const sexpr::compound & expr)
+get_id(const sexpr::compound & expr)
 {
 	JSYN_ASSERT(expr.kind() == "Name");
 	JSYN_ASSERT(expr.args().size() == 1);
@@ -130,7 +133,7 @@ get_name(const sexpr::compound & expr)
 }
 
 static jive::output *
-convert_expr(const sexpr::compound & expr, context & ctx);
+convert_expr(const sexpr & expr, context & ctx);
 
 static jive::output *
 convert_fix(const sexpr::compound & expr, context & ctx)
@@ -152,24 +155,53 @@ convert_letin(const sexpr::compound & expr, context & ctx)
 	return nullptr;
 }
 
+
+static jive::output *
+convert_branches(const sexpr::compound & expr, context & ctx)
+{
+	JSYN_ASSERT(expr.kind() == "Branches");
+
+	for (auto & branch : expr.args()) {
+		convert_expr(*branch, ctx);
+	}
+
+	JSYN_ASSERT(0 && "Unhandled");
+	return nullptr;
+}
+
 static jive::output *
 convert_match(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Match");
+	JSYN_ASSERT(expr.args().size() == 1);
 
-	//FIXME
-	JSYN_ASSERT(0 && "Unhandled");
-	return nullptr;
+	auto & operand = *expr.args()[0];
+
+	return convert_expr(operand, ctx);
 }
 
 static jive::output *
 convert_case(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Case");
+	JSYN_ASSERT(expr.args().size() == 4);
+
+	auto & match = *expr.args()[2];
+	auto & branches = *expr.args()[3];
+
+	auto operand = convert_expr(match, ctx);
+	auto node = match::node::create(ctx.region(), operand);
+
+	ctx.push_region(node->subregion());
+
+	convert_expr(branches, ctx);
+	//convert_expr(match, ctx);
+
+	ctx.pop_region();
 
 	//FIXME
 //	JSYN_ASSERT(0 && "Unhandled");
-	return nullptr;
+	return node->output(0);
 }
 
 static jive::output *
@@ -178,26 +210,26 @@ convert_lambda(const sexpr::compound & expr, context & ctx)
 	JSYN_ASSERT(expr.kind() == "Lambda");
 	JSYN_ASSERT(expr.args().size() == 3);
 
-	auto argname = get_name(dynamic_cast<const sexpr::compound&>(*expr.args()[0]));
+	auto argument = get_id(dynamic_cast<const sexpr::compound&>(*expr.args()[0]));
 //	auto & type = dynamic_cast<const sexpr::compound&>(*decl.args()[1]);
-	auto & body = dynamic_cast<const sexpr::compound&>(*expr.args()[2]);
+	auto & body = *expr.args()[2];
+//dynamic_cast<const sexpr::compound&>(*expr.args()[2]);
 
 	//FIXME: to be removed
 	auto vt = dummytype::create();
 	auto ft = fcttype::create({vt.get()}, {vt.get()});
 
+	/* FIXME: lambda node seem to have no name */
 	auto lambda = lambda::node::create(ctx.region(), *dynamic_cast<const fcttype*>(ft.get()), "?");
 
 	ctx.push_region(lambda->subregion());
-	ctx.insert(argname, lambda->fctargument(0));
+	ctx.insert(argument, lambda->fctargument(0));
 
 	auto result = convert_expr(body, ctx);
 
 	ctx.pop_region();
 
 	return lambda->finalize({result});
-	//FIXME
-	//JSYN_ASSERT(0 && "Unhandled");
 }
 
 static jive::output *
@@ -224,10 +256,11 @@ static jive::output *
 convert_local(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Local");
+	JSYN_ASSERT(expr.args().size() == 2);
 
-	// FIXME
-	JSYN_ASSERT(0 && "Unhandled");
-	return nullptr;
+	auto id = expr.args()[0]->to_string();
+
+	return ctx.lookup(id);
 }
 
 static jive::output *
@@ -238,6 +271,7 @@ convert_global(const sexpr::compound & expr, context & ctx)
 
 	auto name = expr.args()[0]->to_string();
 
+	//FIXME:
 	JSYN_ASSERT(0 && "Undhandled");
 	return nullptr;
 }
@@ -259,17 +293,25 @@ convert_expr(const sexpr::compound & expr, context & ctx)
 		std::string
 	, jive::output*(*)(const sexpr::compound&, context&)
 	> map({
-	  {"Prod",  convert_prod},  {"Global", convert_global}
-	, {"Local", convert_local}, {"Sort",   convert_sort}
-	, {"App",   convert_app},   {"Lambda", convert_lambda}
-	, {"Case",  convert_case},  {"Match",  convert_match}
-	, {"LetIn", convert_letin}, {"Fix",    convert_fix}
+	  {"Prod",     convert_prod},     {"Global", convert_global}
+	, {"Local",    convert_local},    {"Sort",   convert_sort}
+	, {"App",      convert_app},      {"Lambda", convert_lambda}
+	, {"Case",     convert_case},     {"Match",  convert_match}
+	, {"LetIn",    convert_letin},    {"Fix",    convert_fix}
+	, {"Branches", convert_branches}
 	});
 
 	if (map.find(expr.kind()) == map.end())
 		throw compilation_error("Unknown expression: " + expr.kind());
 
 	return map[expr.kind()](expr, ctx);
+}
+
+static jive::output *
+convert_expr(const sexpr & expr, context & ctx)
+{
+	auto & compound = dynamic_cast<const sexpr::compound&>(expr);
+	return convert_expr(compound, ctx);
 }
 
 static void
