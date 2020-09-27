@@ -77,6 +77,12 @@ Module sexpr.
       | _ => Exception "ParseError" "expected literal"
     end.
 
+  Definition as_expr (e : t) : ExceptionOr (string * list_t) :=
+    match e with
+      | expr kind args => Okay (kind, args)
+      | _ => Exception "ParseError" "expected compound expression"
+    end.
+
   Definition split1 (l : list_t) : ExceptionOr t :=
     match l with
       | list_cons e list_nil => Okay e
