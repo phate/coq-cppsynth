@@ -214,3 +214,83 @@ Module inductive.
     return_ _ (make result).
 
 End inductive.
+
+Module definition.
+  Inductive t : Set :=
+    | make :
+      forall (name : string),
+      forall (type : expr_t),
+      forall (body : expr_t),
+      t.
+
+  Definition from_sexpr_list (l : sexpr.list_t) : ExceptionOr t :=
+    do parts <-- sexpr.split3 l ;
+    let s_name := (fst (fst parts)) in
+    let s_type := (snd (fst parts)) in
+    let s_body := snd parts in
+    do name <-- sexpr.as_terminal s_name ;
+    do type <-- from_sexpr s_type ;
+    do body <-- from_sexpr s_body ;
+    return_ _ (make name type body).
+
+End definition.
+
+Module structure_field.
+  Inductive t : Set :=
+    | f_ind : forall (i : inductive.t), t
+    | f_def : forall (d : definition.t), t
+   .
+
+  Definition from_sexpr (e : sexpr.t) : ExceptionOr t :=
+    match e with
+      | sexpr.terminal t => Exception "ParseError" "Expected definition or inductive"
+      | sexpr.expr kind args =>
+        if string_dec kind "Inductive" then
+          do i <-- inductive.from_sexpr_list args ;
+          return_ _ (f_ind i)
+        else if string_dec kind "Record" then
+          do i <-- inductive.from_sexpr_list args ;
+          return_ _ (f_ind i)
+        else if string_dec kind "Definition" then
+          do d <-- definition.from_sexpr_list args ;
+          return_ _ (f_def d)
+        else
+          Exception "ParseError" "Expected definition or inductive"
+    end.
+
+End structure_field.
+
+Module module.
+  (* XXX: nested modules *)
+  Inductive t : Set :=
+    | make :
+      forall (name : string),
+      forall (body : list structure_field.t),
+      t.
+
+  Definition from_sexpr_list (l : sexpr.list_t) : ExceptionOr t :=
+    do parts <-- sexpr.split2 l ;
+    let s_name := fst parts in
+    let s_body : sexpr.t := snd parts in
+    do name <-- sexpr.as_terminal s_name ;
+    do s_body_parts <-- sexpr.as_expr s_body ;
+    let body_kind := fst s_body_parts in
+    if string_dec body_kind "StructureBody" then
+      let s_body_args := snd s_body_parts in
+      do body <-- sexpr.split1 s_body_args ;
+      let result := nil in
+      let maybe_result :=
+        (fix loop (l : sexpr.list_t) (result : list structure_field.t) : ExceptionOr (list structure_field.t) :=
+          match l with
+            | sexpr.list_cons e l =>
+              do f <-- structure_field.from_sexpr e ;
+              let result := result ++ f :: nil in
+              loop l result
+            | sexpr.list_nil => Okay result
+          end) s_body_args result in
+      do result <-- maybe_result ;
+      return_ _ (make name result)
+    else
+      Exception "ParseError" "Expected StructureBody".
+
+End module.
