@@ -1,5 +1,7 @@
 #include <jsyn/ir/case.hpp>
+#include <jsyn/ir/constructor.hpp>
 #include <jsyn/ir/definition.hpp>
+#include <jsyn/ir/inductive.hpp>
 #include <jsyn/ir/lambda.hpp>
 #include <jsyn/ir/match.hpp>
 #include <jsyn/ir/module.hpp>
@@ -161,11 +163,10 @@ convert_branches(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Branches");
 
-	for (auto & branch : expr.args()) {
+	for (auto & branch : expr.args())
 		convert_expr(*branch, ctx);
-	}
 
-	JSYN_ASSERT(0 && "Unhandled");
+//	JSYN_ASSERT(0 && "Unhandled");
 	return nullptr;
 }
 
@@ -229,7 +230,7 @@ convert_lambda(const sexpr::compound & expr, context & ctx)
 
 	ctx.pop_region();
 
-	return lambda->finalize({result});
+	return nullptr;//lambda->finalize({result});
 }
 
 static jive::output *
@@ -315,10 +316,46 @@ convert_expr(const sexpr & expr, context & ctx)
 }
 
 static void
+convert(const sexpr & expr, context & ctx);
+
+static void
+convert_constructor(const sexpr::compound & decl, context & ctx)
+{
+	JSYN_ASSERT(decl.kind() == "Constructor");
+	JSYN_ASSERT(decl.args().size() == 2);
+
+	auto name = decl.args()[0]->to_string();
+
+	auto constructor = constructor::node::create(ctx.region(), name);
+}
+
+static void
+convert_oneinductive(const sexpr::compound & decl, context & ctx)
+{
+	JSYN_ASSERT(decl.kind() == "OneInductive");
+	JSYN_ASSERT(decl.args().size() >= 2);
+
+	auto name = decl.args()[0]->to_string();
+
+	auto inductive = inductive::node::create(ctx.region(), name);
+
+	ctx.push_region(inductive->subregion());
+	for (size_t n = 2; n < decl.args().size(); n++)
+		convert(*decl.args()[n], ctx);
+	ctx.pop_region();
+}
+
+static void
 convert_inductive(const sexpr::compound & decl, context & ctx)
 {
 	JSYN_ASSERT(decl.kind() == "Inductive");
+	JSYN_ASSERT(decl.args().size() == 1);
 
+	auto & body = *decl.args()[0];
+
+
+//	ctx.push_region()
+	convert(body, ctx);
 	// FIXME
 //	JSYN_ASSERT(0 && "Unhandled");
 }
@@ -331,7 +368,7 @@ convert_definition(const sexpr::compound & decl, context & ctx)
 
 	auto name = decl.args()[0]->to_string();
 //	auto & type = dynamic_cast<const sexpr::compound&>(*decl.args()[1]);
-	auto & body = dynamic_cast<const sexpr::compound&>(*decl.args()[2]);
+	auto & body = *decl.args()[2];
 
 	auto definition = definition::node::create(ctx.region(), name);
 
@@ -341,7 +378,13 @@ convert_definition(const sexpr::compound & decl, context & ctx)
 }
 
 static void
-convert(const sexpr::compound & decl, context & ctx);
+convert_structurebody(const sexpr::compound & decl, context & ctx)
+{
+	JSYN_ASSERT(decl.kind() == "StructureBody");
+
+	for (auto & arg : decl.args())
+		convert(*arg, ctx);
+}
 
 static void
 convert_module(const sexpr::compound & decl, context & ctx)
@@ -350,13 +393,12 @@ convert_module(const sexpr::compound & decl, context & ctx)
 	JSYN_ASSERT(decl.args().size() == 2);
 
 	auto name = decl.args()[0]->to_string();
-	auto & sb = dynamic_cast<const sexpr::compound&>(*decl.args()[1]); 
+	auto & sb = *decl.args()[1];
 
 	auto module = module::node::create(ctx.region(), name);
 
 	ctx.push_region(module->subregion());
-	for (auto & decl : sb.args())
-		convert(dynamic_cast<const sexpr::compound&>(*decl), ctx);
+	convert(sb, ctx);
 	ctx.pop_region();
 }
 
@@ -367,9 +409,12 @@ convert(const sexpr::compound & decl, context & ctx)
 		std::string
 	, void(*)(const sexpr::compound&, context&)
 	> map({
-	  {"Module",     convert_module}
-	, {"Definition", convert_definition}
-	, {"Inductive",  convert_inductive}
+	  {"Module",        convert_module}
+	, {"StructureBody", convert_structurebody}
+	, {"Definition",    convert_definition}
+	, {"Inductive",     convert_inductive}
+	, {"OneInductive",  convert_oneinductive}
+	, {"Constructor",   convert_constructor}
 	});
 
 	if (map.find(decl.kind()) == map.end())
@@ -378,13 +423,20 @@ convert(const sexpr::compound & decl, context & ctx)
 	map[decl.kind()](decl, ctx);
 }
 
+static void
+convert(const sexpr & expr, context & ctx)
+{
+	auto & compound = dynamic_cast<const sexpr::compound&>(expr);
+	convert(compound, ctx);
+}
+
 std::unique_ptr<rvsdg>
 convert_sexpr(const sexpr & e)
 {
 	auto rvsdg = rvsdg::create();
 
 	context ctx(*rvsdg);
-	convert(*dynamic_cast<const sexpr::compound*>(&e), ctx);
+	convert(e, ctx);
 
 	return rvsdg;
 }
