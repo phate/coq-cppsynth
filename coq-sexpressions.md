@@ -42,6 +42,7 @@ A _term_ s-expression is one of either:
 - [Lambda](#lambda)
 - [Let](#let)
 - [Apply](#app)
+- [Case](#case)
 - [Fix](#fix)
 - [Cofix](#cofix)
 - [Int](#int)
