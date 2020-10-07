@@ -73,7 +73,7 @@ Where:
 - _name_ is a literal string used for the name -- it is _not_ guaranteed to be
   unique and exists as convenience, use _index_
 - _index_ is a literal string giving a non-negative integer; it identifies the
-  referenced local by [de Bruijn index)[#debruijn]
+  referenced local by [de Bruijn index](#debruijn)
 
 ### <a name="prod">Dependent product</a>
 
