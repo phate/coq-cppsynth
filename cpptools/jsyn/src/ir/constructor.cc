@@ -35,7 +35,7 @@ operation::copy() const
 node::~node()
 {}
 
-constructor::node *
+constructor::output *
 node::create(
 	jive::region * parent,
 	const std::string & name)
@@ -43,7 +43,7 @@ node::create(
 	constructor::operation op(name);
 	auto node = new constructor::node(parent, std::move(op));
 
-	return node;
+	return output::create(node);
 }
 
 constructor::node *
@@ -57,12 +57,17 @@ node::copy(
 constructor::node *
 node::copy(jive::region * region, jive::substitution_map&) const
 {
-	auto constructor = create(this->region(), name());
+	auto output = create(this->region(), name());
 
 	JSYN_ASSERT(0 && "FIXME: provide implementation");
 
-	return constructor;
+	return output->node();
 }
+
+/* constructor output class */
+
+output::~output()
+{}
 
 }}
 

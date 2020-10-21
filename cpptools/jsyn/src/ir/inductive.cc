@@ -46,6 +46,13 @@ node::create(
 	return node;
 }
 
+inductive::output *
+node::add_constructor(constructor::output *)
+{
+	//FIXME: use argument
+	return output::create(this);
+}
+
 inductive::node *
 node::copy(
 	jive::region * region,
@@ -63,5 +70,10 @@ node::copy(jive::region * region, jive::substitution_map&) const
 
 	return inductive;
 }
+
+/* inductive output class */
+
+output::~output()
+{}
 
 }}

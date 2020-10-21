@@ -15,9 +15,9 @@
 namespace jsyn {
 
 class context final {
-	class frame final {
+	class scope final {
 		public:
-			frame(jive::region * region)
+			scope(jive::region * region)
 			: region_(region)
 			{}
 
@@ -47,10 +47,17 @@ class context final {
 				outputs_[name] = output;
 			}
 
-			static std::unique_ptr<frame>
+			static std::unique_ptr<scope>
 			create(jive::region * region)
 			{
-				return std::make_unique<frame>(region);
+				return std::make_unique<scope>(region);
+			}
+
+			// FIXME: provide iterators
+			const std::unordered_map<std::string, jive::output*>
+			map() const noexcept
+			{
+				return outputs_;
 			}
 
 		private:
@@ -62,7 +69,7 @@ public:
 	context(jsyn::rvsdg & rvsdg)
 	: rvsdg_(&rvsdg)
 	{
-		push_region(rvsdg.graph().root());
+		push_scope(rvsdg.graph().root());
 	}
 
 	context(const context&) = delete;
@@ -84,29 +91,37 @@ public:
 	jive::region *
 	region() const noexcept
 	{
-		JSYN_ASSERT(!frames_.empty());
-		return frames_.back()->region();
+		JSYN_ASSERT(!scopes_.empty());
+		return scopes_.back()->region();
+	}
+
+	scope *
+	last() const noexcept
+	{
+		JSYN_ASSERT(!scopes_.empty());
+		return scopes_.back().get();
 	}
 
 	void
-	push_region(jive::region * region)
+	push_scope(jive::region * region)
 	{
-		frames_.push_back(frame::create(region));
+		scopes_.push_back(scope::create(region));
 	}
 
 	void
-	pop_region()
+	pop_scope()
 	{
-		JSYN_ASSERT(!frames_.empty());
-		frames_.pop_back();
+		JSYN_ASSERT(!scopes_.empty());
+		scopes_.pop_back();
 	}
 
 	jive::output *
 	lookup(const std::string & name)
 	{
-		for (auto it = frames_.rbegin(); it != frames_.rend(); it++) {
-			if ((*it)->contains(name))
-				return (*it)->lookup(name);
+		auto mname = modulize_name(name);
+		for (auto it = scopes_.rbegin(); it != scopes_.rend(); it++) {
+			if ((*it)->contains(mname))
+				return (*it)->lookup(mname);
 		}
 
 		JSYN_ASSERT(0 && "FIXME: implement");
@@ -117,12 +132,35 @@ public:
 	void
 	insert(const std::string & name, jive::output * output)
 	{
-		frames_.back()->insert(name, output);
+		auto mname = modulize_name(name);
+		scopes_.back()->insert(mname, output);
 	}	
 
+	void
+	enter_module(jive::region * region, const std::string & name)
+	{
+		push_scope(region);
+		module_paths_.push_back(name);
+	}
+
+	void
+	exit_module()
+	{
+		JSYN_ASSERT(!module_paths_.empty());
+		module_paths_.pop_back();
+		pop_scope();
+	}
+
 private:
+	std::string
+	modulize_name(const std::string & name)
+	{
+		return module_paths_.back() + "." + name;
+	}
+
 	jsyn::rvsdg * rvsdg_;
-	std::vector<std::unique_ptr<frame>> frames_;
+	std::vector<std::string> module_paths_;
+	std::vector<std::unique_ptr<scope>> scopes_;
 };
 
 std::string
@@ -163,8 +201,18 @@ convert_branches(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Branches");
 
-	for (auto & branch : expr.args())
-		convert_expr(*branch, ctx);
+	for (auto & arg : expr.args()) {
+		auto & branch = dynamic_cast<const sexpr::compound&>(*arg);
+		JSYN_ASSERT(branch.args().size() == 2);
+
+		std::string constname = branch.kind();
+		auto nargs = std::stoi(branch.args()[0]->to_string());
+//		auto & body = branch.args()[1];
+
+		auto constructor = ctx.lookup(constname);
+
+//		convert_expr(*branch, ctx);
+	}
 
 //	JSYN_ASSERT(0 && "Unhandled");
 	return nullptr;
@@ -193,12 +241,12 @@ convert_case(const sexpr::compound & expr, context & ctx)
 	auto operand = convert_expr(match, ctx);
 	auto node = match::node::create(ctx.region(), operand);
 
-	ctx.push_region(node->subregion());
+	ctx.push_scope(node->subregion());
 
 	convert_expr(branches, ctx);
 	//convert_expr(match, ctx);
 
-	ctx.pop_region();
+	ctx.pop_scope();
 
 	//FIXME
 //	JSYN_ASSERT(0 && "Unhandled");
@@ -223,12 +271,12 @@ convert_lambda(const sexpr::compound & expr, context & ctx)
 	/* FIXME: lambda node seem to have no name */
 	auto lambda = lambda::node::create(ctx.region(), *dynamic_cast<const fcttype*>(ft.get()), "?");
 
-	ctx.push_region(lambda->subregion());
+	ctx.push_scope(lambda->subregion());
 	ctx.insert(argument, lambda->fctargument(0));
 
 	auto result = convert_expr(body, ctx);
 
-	ctx.pop_region();
+	ctx.pop_scope();
 
 	return nullptr;//lambda->finalize({result});
 }
@@ -326,7 +374,8 @@ convert_constructor(const sexpr::compound & decl, context & ctx)
 
 	auto name = decl.args()[0]->to_string();
 
-	auto constructor = constructor::node::create(ctx.region(), name);
+	auto output = constructor::node::create(ctx.region(), name);
+	ctx.insert(name, output);
 }
 
 static void
@@ -339,10 +388,17 @@ convert_oneinductive(const sexpr::compound & decl, context & ctx)
 
 	auto inductive = inductive::node::create(ctx.region(), name);
 
-	ctx.push_region(inductive->subregion());
+	ctx.push_scope(inductive->subregion());
 	for (size_t n = 2; n < decl.args().size(); n++)
 		convert(*decl.args()[n], ctx);
-	ctx.pop_region();
+
+	auto map = ctx.last()->map();	
+	ctx.pop_scope();
+
+	for (auto & pair : map) {
+		auto output = inductive->add_constructor(dynamic_cast<constructor::output*>(pair.second));
+		ctx.insert(pair.first, output);
+	}
 }
 
 static void
@@ -352,7 +408,6 @@ convert_inductive(const sexpr::compound & decl, context & ctx)
 	JSYN_ASSERT(decl.args().size() == 1);
 
 	auto & body = *decl.args()[0];
-
 
 //	ctx.push_region()
 	convert(body, ctx);
@@ -372,9 +427,9 @@ convert_definition(const sexpr::compound & decl, context & ctx)
 
 	auto definition = definition::node::create(ctx.region(), name);
 
-	ctx.push_region(definition->subregion());
+	ctx.push_scope(definition->subregion());
 	convert_expr(body, ctx);
-	ctx.pop_region();
+	ctx.pop_scope();
 }
 
 static void
@@ -397,9 +452,9 @@ convert_module(const sexpr::compound & decl, context & ctx)
 
 	auto module = module::node::create(ctx.region(), name);
 
-	ctx.push_region(module->subregion());
+	ctx.enter_module(module->subregion(), name);
 	convert(sb, ctx);
-	ctx.pop_region();
+	ctx.exit_module();
 }
 
 static void

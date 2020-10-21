@@ -4,7 +4,13 @@
 #include <jive/rvsdg/structural-node.h>
 #include <jive/rvsdg/substitution.h>
 
+#include <jsyn/ir/types.hpp>
+
 namespace jsyn {
+namespace constructor {
+	class output;
+}
+
 namespace inductive {
 
 /**
@@ -36,6 +42,9 @@ public:
 private:
 	std::string name_;
 };
+
+
+class output;
 
 /**
 *	FIXME: write documentation
@@ -84,6 +93,38 @@ public:
 	create(
 		jive::region * parent,
 		const std::string & name);
+
+	inductive::output *
+	add_constructor(constructor::output * output);
+};
+
+/**
+* FIXME: write documentation
+*/
+class output final : public jive::structural_output {
+	friend ::jsyn::inductive::node;
+
+public:
+	~output() override;
+
+private:
+	output(inductive::node * node)
+	: structural_output(node, *dummytype::create())
+	{}
+
+	static output *
+	create(inductive::node * node)
+	{
+		auto output = std::unique_ptr<inductive::output>(new inductive::output(node));
+		return static_cast<inductive::output*>(node->append_output(std::move(output)));
+	}
+
+public:
+	inductive::node *
+	node() const noexcept
+	{
+		return static_cast<inductive::node*>(structural_output::node());
+	}
 };
 
 }}

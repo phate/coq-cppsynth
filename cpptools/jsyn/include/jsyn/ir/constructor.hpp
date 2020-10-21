@@ -4,6 +4,8 @@
 #include <jive/rvsdg/structural-node.h>
 #include <jive/rvsdg/substitution.h>
 
+#include <jsyn/ir/types.hpp>
+
 namespace jsyn {
 namespace constructor {
 
@@ -37,6 +39,8 @@ private:
 	std::string name_;
 };
 
+
+class output;
 
 /**
 * FIXME: write documentation
@@ -81,10 +85,39 @@ public:
 		jive::region * region,
 		jive::substitution_map & smap) const override;
 
-	static node *
+	static constructor::output *
 	create(
 		jive::region * parent,
 		const std::string & name);
+};
+
+/**
+* FIXME: write documentation
+*/
+class output final : public jive::structural_output {
+	friend ::jsyn::constructor::node;
+
+public:
+	~output() override;
+
+private:
+	output(constructor::node * node)
+	: structural_output(node, *dummytype::create())
+	{}
+
+	static output *
+	create(constructor::node * node)
+	{
+		auto output = std::unique_ptr<constructor::output>(new constructor::output(node));
+		return static_cast<constructor::output*>(node->append_output(std::move(output)));
+	}
+
+public:
+	constructor::node *
+	node() const noexcept
+	{
+		return static_cast<constructor::node*>(structural_output::node());
+	}
 };
 
 }}
