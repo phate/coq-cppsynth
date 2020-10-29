@@ -163,7 +163,29 @@ private:
 	std::vector<std::unique_ptr<scope>> scopes_;
 };
 
-std::string
+static jive::output *
+route(jive::output * output, jive::region * region)
+{
+	if (output->region() == region)
+		return output;
+
+	auto node = region->node();
+	JSYN_ASSERT(node != nullptr);
+	if (node->region() != region)
+		output = route(output, node->region());
+
+	//FIXME: implement as lookup table
+	if (auto def = dynamic_cast<definition::node*>(node))
+		return def->add_ctxvar(output);
+
+	if (auto lambda = dynamic_cast<lambda::node*>(node))
+		return lambda->add_ctxvar(output);
+
+	JSYN_ASSERT(0 && "This should not have happened");
+	return nullptr;
+}
+
+static std::string
 get_id(const sexpr::compound & expr)
 {
 	JSYN_ASSERT(expr.kind() == "Name");
@@ -209,7 +231,7 @@ convert_branches(const sexpr::compound & expr, context & ctx)
 		auto nargs = std::stoi(branch.args()[0]->to_string());
 //		auto & body = branch.args()[1];
 
-		auto constructor = ctx.lookup(constname);
+		auto constructor = route(ctx.lookup(constname), ctx.region());
 
 //		convert_expr(*branch, ctx);
 	}
@@ -241,12 +263,12 @@ convert_case(const sexpr::compound & expr, context & ctx)
 	auto operand = convert_expr(match, ctx);
 	auto node = match::node::create(ctx.region(), operand);
 
-	ctx.push_scope(node->subregion());
+//	ctx.push_scope(node->subregion());
 
 	convert_expr(branches, ctx);
 	//convert_expr(match, ctx);
 
-	ctx.pop_scope();
+//	ctx.pop_scope();
 
 	//FIXME
 //	JSYN_ASSERT(0 && "Unhandled");

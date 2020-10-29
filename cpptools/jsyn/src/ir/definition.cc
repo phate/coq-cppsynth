@@ -35,6 +35,25 @@ operation::copy() const
 node::~node()
 {}
 
+cvinput *
+node::input(size_t n) const noexcept
+{
+	return static_cast<cvinput*>(structural_node::input(n));
+}
+
+definition::cvargument *
+node::cvargument(size_t n) const noexcept
+{
+	return input(n)->argument();
+}
+
+cvargument *
+node::add_ctxvar(jive::output * origin)
+{
+	auto input = cvinput::create(this, origin);
+	return cvargument::create(subregion(), input);
+}
+
 definition::node *
 node::create(
 	jive::region * parent,
@@ -63,5 +82,21 @@ node::copy(jive::region * region, jive::substitution_map&) const
 
 	return definition;
 }
+
+/* definition context variable input class */
+
+cvinput::~cvinput()
+{}
+
+cvargument *
+cvinput::argument() const noexcept
+{
+	return static_cast<cvargument*>(arguments.first());
+}
+
+/* lambda context variable argument class */
+
+cvargument::~cvargument()
+{}
 
 }}

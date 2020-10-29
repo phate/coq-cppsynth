@@ -38,6 +38,9 @@ private:
 };
 
 
+class cvargument;
+class cvinput;
+
 /**
 * FIXME: write documentation
 */
@@ -71,6 +74,24 @@ public:
 		return operation().name();
 	}
 
+	cvinput *
+	input(size_t n) const noexcept;
+
+	size_t
+	ncvarguments() const noexcept
+	{
+		return ninputs();
+	}
+
+	definition::cvargument *
+	cvargument(size_t n) const noexcept;
+
+	/*
+		FIXME: write documentation
+	*/
+	definition::cvargument *
+	add_ctxvar(jive::output * origin);
+
 	virtual definition::node *
 	copy(
 		jive::region * region,
@@ -85,6 +106,78 @@ public:
 	create(
 		jive::region * parent,
 		const std::string & name);
+};
+
+
+/**
+* FIXME: write documentation
+*/
+class cvinput final : public jive::structural_input {
+	friend ::jsyn::definition::node;
+
+public:
+	~cvinput() override;
+
+private:
+	cvinput(
+		definition::node * node,
+		jive::output * origin)
+	: structural_input(node, origin, origin->port())
+	{}
+
+	static cvinput *
+	create(
+		definition::node * node,
+		jive::output * origin)
+	{
+		auto input = std::unique_ptr<cvinput>(new cvinput(node, origin));
+		return static_cast<cvinput*>(node->append_input(std::move(input)));
+	}
+
+public:
+	cvargument *
+	argument() const noexcept;
+
+	definition::node *
+	node() const noexcept
+	{
+		return static_cast<definition::node*>(structural_input::node());
+	}
+};
+
+
+/**
+* FIXME: write documentation
+*/
+class cvargument final : public jive::argument {
+	friend ::jsyn::definition::node;
+
+public:
+	~cvargument() override;
+
+private:
+	cvargument(
+		jive::region * region,
+		cvinput * input)
+	: jive::argument(region, input, input->port())
+	{}
+
+	static cvargument *
+	create(
+		jive::region * region,
+		definition::cvinput * input)
+	{
+		auto argument = new cvargument(region, input);
+		region->append_argument(argument);
+		return argument;
+	}
+
+public:
+	cvinput *
+	input() const noexcept
+	{
+		return static_cast<cvinput*>(jive::argument::input());
+	}
 };
 
 }}
