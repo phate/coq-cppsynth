@@ -181,6 +181,40 @@ private:
 	std::vector<std::unique_ptr<jive::type>> results_;
 };
 
+/** \brief Control type
+*
+* FIXME: write something
+*/
+class ctltype final : public jive::statetype {
+public:
+	~ctltype() override;
+
+	ctltype(size_t nalternatives)
+	: nalternatives_(nalternatives)
+	{
+		if (nalternatives < 2)
+			throw compiler_error("Number of alternatives must greather than one.");
+	}
+
+	virtual std::string
+	debug_string() const noexcept;
+
+	virtual bool
+	operator==(const jive::type & other) const noexcept override;
+
+	virtual std::unique_ptr<jive::type>
+	copy() const override;
+
+	size_t
+	nalternatives() const noexcept
+	{
+		return nalternatives_;
+	}
+
+private:
+	size_t nalternatives_;
+};
+
 /** FIXME: to be removed
 */
 class dummytype final : public jive::valuetype {

@@ -271,7 +271,6 @@ public:
 	*/
 	lambda::output *
 	finalize(const std::vector<jive::output*> & results);
-
 };
 
 /** \brief Lambda context variable input

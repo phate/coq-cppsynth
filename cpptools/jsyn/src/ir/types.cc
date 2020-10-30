@@ -112,6 +112,31 @@ fcttype::copy() const
 	return std::unique_ptr<jive::type>(new fcttype(*this));
 }
 
+/* control type */
+
+ctltype::~ctltype()
+{}
+
+std::string
+ctltype::debug_string()
+{
+	return strfmt("ctl(", nalternatives(), ")");
+}
+
+bool
+ctltype::operator==(const jive::type & other) const noexcept
+{
+	auto ct = dynamic_cast<const ctltype*>(&other);
+	return ct
+	    && ct->nalternatives() == nalternatives();
+}
+
+std::unique_ptr<jive::type>
+ctltype::copy() const
+{
+	return std::unique_ptr<jive::type>(new ctltype(*this));
+}
+
 //FIXME: to be removed
 
 dummytype::~dummytype()
