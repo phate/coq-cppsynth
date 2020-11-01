@@ -1,4 +1,6 @@
-#include <jsyn/util/gamma.hpp>
+#include <jsyn/ir/gamma.hpp>
+#include <jsyn/ir/types.hpp>
+#include <jsyn/util/exception.hpp>
 
 namespace jsyn {
 namespace gamma {
@@ -37,18 +39,36 @@ node::eviterator
 node::begin_ev()
 {
 	if (ninputs() < 2)
-		return end_cv();
+		return end_ev();
 
 	return eviterator(input(1));
 }
 
 node::xviterator
-node::being_xv()
+node::begin_xv()
 {
 	if (noutputs() == 0)
 		return end_xv();
 
 	return xviterator(output(0));
+}
+
+node::evconstiterator
+node::begin_ev() const
+{
+	if (ninputs() < 2)
+		return end_ev();
+
+	return evconstiterator(input(1));
+}
+
+node::xvconstiterator
+node::begin_xv() const
+{
+	if (noutputs() == 0)
+		return end_xv();
+
+	return xvconstiterator(output(0));
 }
 
 node::eviterator
@@ -61,6 +81,18 @@ node::xviterator
 node::end_xv()
 {
 	return xviterator(nullptr);
+}
+
+node::evconstiterator
+node::end_ev() const
+{
+	return evconstiterator(nullptr);
+}
+
+node::xvconstiterator
+node::end_xv() const
+{
+	return xvconstiterator(nullptr);
 }
 
 evinput *
@@ -89,7 +121,7 @@ xvoutput *
 node::add_exitvar(const std::vector<jive::output*> & values)
 {
 	if (values.size() != nsubregions())
-		throw compiler_error("Incorrect number of values.");
+		throw compilation_error("Incorrect number of values.");
 
 	auto output = xvoutput::create(this, values[0]->type());
 	for (size_t n; n < nsubregions(); n++)
@@ -101,9 +133,8 @@ node::add_exitvar(const std::vector<jive::output*> & values)
 gamma::node *
 node::create(jive::output * predicate)
 {
-	auto ct = dynamic_cast<const ctlttype*>(&predicate->type());
-	if (!ct)
-		throw compiler_error("Gamma predicate must be a control type.");
+	auto ct = dynamic_cast<const ctltype*>(&predicate->type());
+	if (!ct) throw compilation_error("Gamma predicate must be a control type.");
 
 	gamma::operation op(ct->nalternatives());
 	auto node = new gamma::node(predicate->region(), std::move(op));
@@ -121,21 +152,21 @@ node::copy(
 }
 
 gamma::node *
-node::copy(jive::region * region, jive::substitution_map & smap) const
+node::copy(jive::region*, jive::substitution_map & smap) const
 {
-	auto gamma = create(region, smap.lookup(predicate()->origin()));
+	auto gamma = create(smap.lookup(predicate()->origin()));
 
 	/* add entry variables */
 	std::vector<jive::substitution_map> rmaps(nsubregions());
 	for (auto oev = begin_ev(); oev != end_ev(); oev++) {
 		auto nev = gamma->add_entryvar(smap.lookup(oev->origin()));
 		for (size_t n = 0; n < nev->narguments(); n++)
-			rmaps[n].insert(oev->argument(n), nev->argument());
+			rmaps[n].insert(oev->argument(n), nev->argument(n));
 	}
 
 	/* copy subregions */
-	for (size_t n = 0; n < subregions(); n++)
-		subregion(n)->copy(gamma->subregion(n), subregionmaps[n], false, false);
+	for (size_t n = 0; n < nsubregions(); n++)
+		subregion(n)->copy(gamma->subregion(n), rmaps[n], false, false);
 
 	/* add exit variables */
 	for (auto oxv = begin_xv(); oxv != end_xv(); oxv++) {
@@ -143,10 +174,32 @@ node::copy(jive::region * region, jive::substitution_map & smap) const
 		for (size_t n = 0; n < oxv->nresults(); n++)
 			operands.push_back(rmaps[n].lookup(oxv->result(n)->origin()));
 		auto nxv = gamma->add_exitvar(operands);
-		smap.insert(oxv.output(), nxv);
+		smap.insert(oxv.value(), nxv);
 	}
 
 	return gamma;
+}
+
+/* Gamma entry variable input */
+
+evargument*
+evinput::argument(size_t n) const noexcept
+{
+	JSYN_ASSERT(n < narguments());
+	auto argument = node()->subregion(n)->argument(index()-1);
+	JSYN_ASSERT(argument->input() == this);
+	return static_cast<evargument*>(argument);
+}
+
+/* Gamma exit variable output */
+
+xvresult *
+xvoutput::result(size_t n) const noexcept
+{
+	JSYN_ASSERT(n < nresults());
+	auto result = node()->subregion(n)->result(index());
+	JSYN_ASSERT(result->output() == this);
+	return static_cast<xvresult*>(result);
 }
 
 }}

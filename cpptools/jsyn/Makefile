@@ -5,6 +5,7 @@ LIBJSYN_SRC = \
 	src/ir/case.cc \
 	src/ir/constructor.cc \
 	src/ir/definition.cc \
+	src/ir/gamma.cc \
 	src/ir/inductive.cc \
 	src/ir/lambda.cc \
 	src/ir/match.cc \

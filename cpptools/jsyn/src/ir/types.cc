@@ -1,5 +1,7 @@
 #include <jsyn/ir/types.hpp>
 
+#include <jive/util/strfmt.h>
+
 namespace jsyn {
 
 /* function type */
@@ -118,9 +120,9 @@ ctltype::~ctltype()
 {}
 
 std::string
-ctltype::debug_string()
+ctltype::debug_string() const noexcept
 {
-	return strfmt("ctl(", nalternatives(), ")");
+	return jive::detail::strfmt("ctl(", nalternatives(), ")");
 }
 
 bool

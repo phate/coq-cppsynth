@@ -2,6 +2,7 @@
 #define JSYN_IR_TYPES_HPP
 
 #include <jsyn/util/assert.hpp>
+#include <jsyn/util/exception.hpp>
 
 #include <jive/rvsdg/type.h>
 
@@ -193,7 +194,7 @@ public:
 	: nalternatives_(nalternatives)
 	{
 		if (nalternatives < 2)
-			throw compiler_error("Number of alternatives must greather than one.");
+			throw compilation_error("Number of alternatives must greather than one.");
 	}
 
 	virtual std::string
