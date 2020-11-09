@@ -65,6 +65,10 @@ private:
 	: structural_node(op, parent, op.nalternatives())
 	{}
 
+/*
+	FIXME: Subregion iterator
+*/
+
 public:
 	eviterator
 	begin_ev();

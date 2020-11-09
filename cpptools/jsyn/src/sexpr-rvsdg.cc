@@ -1,6 +1,7 @@
 #include <jsyn/ir/case.hpp>
 #include <jsyn/ir/constructor.hpp>
 #include <jsyn/ir/definition.hpp>
+#include <jsyn/ir/gamma.hpp>
 #include <jsyn/ir/inductive.hpp>
 #include <jsyn/ir/lambda.hpp>
 #include <jsyn/ir/match.hpp>
@@ -181,6 +182,11 @@ route(jive::output * output, jive::region * region)
 	if (auto lambda = dynamic_cast<lambda::node*>(node))
 		return lambda->add_ctxvar(output);
 
+	if (auto gamma = dynamic_cast<gamma::node*>(node)) {
+		auto input = gamma->add_entryvar(output);
+		return input->argument(region->index());
+	}
+
 	JSYN_ASSERT(0 && "This should not have happened");
 	return nullptr;
 }
@@ -223,6 +229,8 @@ convert_branches(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Branches");
 
+	size_t nbranches = expr.args().size();
+
 	for (auto & arg : expr.args()) {
 		auto & branch = dynamic_cast<const sexpr::compound&>(*arg);
 		JSYN_ASSERT(branch.args().size() == 2);
@@ -257,22 +265,38 @@ convert_case(const sexpr::compound & expr, context & ctx)
 	JSYN_ASSERT(expr.kind() == "Case");
 	JSYN_ASSERT(expr.args().size() == 4);
 
+	/* FIXME: clean up */
+
 	auto & match = *expr.args()[2];
-	auto & branches = *expr.args()[3];
+	auto & branches = dynamic_cast<const sexpr::compound&>(*expr.args()[3]);
 
-	auto operand = convert_expr(match, ctx);
-	auto node = match::node::create(ctx.region(), operand);
+	auto cmp = convert_expr(match, ctx);
 
-//	ctx.push_scope(node->subregion());
+	std::vector<jive::output*> constructors;
+	for (auto & arg : branches.args()) {
+		auto & branch = dynamic_cast<const sexpr::compound&>(*arg);
+		JSYN_ASSERT(branch.args().size() == 2);
 
-	convert_expr(branches, ctx);
-	//convert_expr(match, ctx);
+		std::string constname = branch.kind();
+		constructors.push_back(route(ctx.lookup(constname), ctx.region()));
+	}
 
-//	ctx.pop_scope();
+	auto predicate = match::operation::create(cmp, constructors);
 
-	//FIXME
-//	JSYN_ASSERT(0 && "Unhandled");
-	return node->output(0);
+	std::vector<jive::output*> results;
+	auto gamma = gamma::node::create(predicate);
+	for (size_t n = 0; n < gamma->nsubregions(); n++) {
+		ctx.push_scope(gamma->subregion(n));
+
+		auto & branch = dynamic_cast<const sexpr::compound&>(*branches.args()[n]);
+		auto & body = branch.args()[1];
+
+		results.push_back(convert_expr(*body, ctx));
+
+		ctx.pop_scope();
+	}
+
+	return gamma->add_exitvar(results);
 }
 
 static jive::output *
@@ -331,7 +355,9 @@ convert_local(const sexpr::compound & expr, context & ctx)
 
 	auto id = expr.args()[0]->to_string();
 
-	return ctx.lookup(id);
+	/* FIXME: add de brujin index to name */
+
+	return route(ctx.lookup(id), ctx.region());
 }
 
 static jive::output *

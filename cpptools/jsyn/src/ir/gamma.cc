@@ -95,6 +95,12 @@ node::end_xv() const
 	return xvconstiterator(nullptr);
 }
 
+prdinput *
+node::predicate() const noexcept
+{
+	return static_cast<prdinput*>(structural_node::input(0));
+}
+
 evinput *
 node::input(size_t n) const noexcept
 {
@@ -124,8 +130,8 @@ node::add_exitvar(const std::vector<jive::output*> & values)
 		throw compilation_error("Incorrect number of values.");
 
 	auto output = xvoutput::create(this, values[0]->type());
-	for (size_t n; n < nsubregions(); n++)
-		xvresult::create(values[n], output);
+	for (auto & value : values)
+		xvresult::create(value, output);
 
 	return output;
 }
@@ -180,7 +186,15 @@ node::copy(jive::region*, jive::substitution_map & smap) const
 	return gamma;
 }
 
+/* Gamma predicate input */
+
+prdinput::~prdinput()
+{}
+
 /* Gamma entry variable input */
+
+evinput::~evinput()
+{}
 
 evargument*
 evinput::argument(size_t n) const noexcept
@@ -193,6 +207,9 @@ evinput::argument(size_t n) const noexcept
 
 /* Gamma exit variable output */
 
+xvoutput::~xvoutput()
+{}
+
 xvresult *
 xvoutput::result(size_t n) const noexcept
 {
@@ -201,5 +218,15 @@ xvoutput::result(size_t n) const noexcept
 	JSYN_ASSERT(result->output() == this);
 	return static_cast<xvresult*>(result);
 }
+
+/* Gamma entry variable argument */
+
+evargument::~evargument()
+{}
+
+/* Gamma exit variable result */
+
+xvresult::~xvresult()
+{}
 
 }}

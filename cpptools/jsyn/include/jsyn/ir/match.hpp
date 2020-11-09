@@ -1,7 +1,9 @@
 #ifndef JSYN_IR_MATCH_HPP
 #define JSYN_IR_MATCH_HPP
 
-#include <jive/rvsdg/structural-node.h>
+#include <jsyn/ir/types.hpp>
+
+#include <jive/rvsdg/simple-node.h>
 #include <jive/rvsdg/substitution.h>
 
 namespace jsyn {
@@ -10,9 +12,21 @@ namespace match {
 /**
 * FIXME: write documentation
 */
-class operation final : public jive::structural_op {
+class operation final : public jive::simple_op {
 public:
 	~operation() override;
+
+private:
+	operation(const std::vector<jive::port> & operands)
+	: simple_op(operands, {ctltype(operands.size()-1)})
+	{}
+
+public:
+	const ctltype &
+	type() const noexcept
+	{
+		return *static_cast<const ctltype*>(&result(0).type());
+	}
 
 	virtual std::string
 	debug_string() const override;
@@ -22,116 +36,32 @@ public:
 
 	virtual std::unique_ptr<jive::operation>
 	copy() const override;
-};
 
-/**
-* FIXME: write documentation
-*/
-class node final : public jive::structural_node {
-public:
-	~node() override;
+	static jive::output *
+	create(
+		jive::output * operand,
+		const std::vector<jive::output*> & constructors)
+	{
+		match::operation op(ports(operand, constructors));
+
+		std::vector<jive::output*> operands(1, operand);
+		operands.insert(operands.end(), constructors.begin(), constructors.end());
+
+		return jive::simple_node::create(operand->region(), op, operands)->output(0);
+	}
 
 private:
-	node(
-		jive::region * parent,
-		match::operation && op)
-	: structural_node(op, parent, 1)
-	{}
-
-public:
-	jive::region *
-	subregion() const noexcept
+	static std::vector<jive::port>
+	ports(
+		jive::output * operand,
+		const std::vector<jive::output*> & constructors)
 	{
-		return structural_node::subregion(0);
-	}	
+		std::vector<jive::port> ports;
+		ports.push_back(operand->type());
+		for (auto constructor : constructors)
+			ports.push_back(constructor->type());
 
-	const match::operation &
-	operation() const noexcept
-	{
-		return *static_cast<const match::operation*>(&structural_node::operation());
-	}
-
-	virtual match::node *
-	copy(
-		jive::region * region,
-		const std::vector<jive::output*> & operands) const override;
-
-	virtual match::node *
-	copy(
-		jive::region * region,
-		jive::substitution_map & smap) const override;
-
-	static node *
-	create(
-		jive::region * parent,
-		jive::output * operand);
-};
-
-/**
-* FIXME: write documentation
-*/
-class input final : public jive::structural_input {
-	friend ::jsyn::match::node;
-
-public:
-	~input() override;
-
-private:
-	input(
-		match::node * node,
-		jive::output * origin)
-	: structural_input(node, origin, origin->port())
-	{}
-
-	static input *
-	create(
-		match::node * node,
-		jive::output * origin)
-	{
-		auto input = std::unique_ptr<match::input>(new match::input(node, origin));
-		return static_cast<match::input*>(node->append_input(std::move(input)));
-	}
-
-public:
-	match::node *
-	node() const noexcept
-	{
-		return static_cast<match::node*>(structural_input::node());
-	}
-};
-
-
-/**
-*	FIXME: write documentation
-*/
-class output final : public jive::structural_output {
-	friend ::jsyn::match::node;
-
-public:
-	~output() override;
-
-private:
-	output(
-		match::node * node,
-		const jive::port & port)
-	: structural_output(node, port)
-	{}
-
-	static output *
-	create(
-		match::node * node,
-		const jive::port & port)
-	{
-		auto output = std::unique_ptr<match::output>(new match::output(node, port));
-
-		return static_cast<match::output*>(node->append_output(std::move(output)));
-	}
-
-public:
-	match::node *
-	node() const noexcept
-	{
-		return static_cast<match::node*>(structural_output::node());
+		return ports;
 	}
 };
 
