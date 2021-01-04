@@ -341,6 +341,11 @@ static jive::output *
 convert_sort(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Sort");
+	JSYN_ASSERT(expr.args().size() == 1);
+
+	auto sortname = expr.args()[0]->to_string();
+
+	std::cout << sortname << "\n";
 
 	//FIXME
 	JSYN_ASSERT(0 && "Unhandled");
@@ -377,6 +382,16 @@ static jive::output *
 convert_prod(const sexpr::compound & expr, context & ctx)
 {
 	JSYN_ASSERT(expr.kind() == "Prod");
+	JSYN_ASSERT(expr.args().size() == 3);
+
+	auto argname = expr.args()[0]->to_string();
+	auto & argtype = *expr.args()[1];
+//	auto & valtype = *expr.args()[2];
+
+	std::cout << argname << "\n";
+
+	convert_expr(argtype, ctx);
+//	convert_expr(valtype, ctx);
 
 	// FIXME
 	JSYN_ASSERT(0 && "Unhandled");
@@ -421,6 +436,9 @@ convert_constructor(const sexpr::compound & decl, context & ctx)
 	JSYN_ASSERT(decl.args().size() == 2);
 
 	auto name = decl.args()[0]->to_string();
+	auto & type = *decl.args()[1];
+
+	convert_expr(type, ctx);
 
 	auto output = constructor::node::create(ctx.region(), name);
 	ctx.insert(name, output);
@@ -433,6 +451,7 @@ convert_oneinductive(const sexpr::compound & decl, context & ctx)
 	JSYN_ASSERT(decl.args().size() >= 2);
 
 	auto name = decl.args()[0]->to_string();
+//	auto & type = *decl.args()[1];
 
 	auto inductive = inductive::node::create(ctx.region(), name);
 
@@ -470,8 +489,10 @@ convert_definition(const sexpr::compound & decl, context & ctx)
 	JSYN_ASSERT(decl.args().size() == 3);
 
 	auto name = decl.args()[0]->to_string();
-//	auto & type = dynamic_cast<const sexpr::compound&>(*decl.args()[1]);
+	auto & type = dynamic_cast<const sexpr::compound&>(*decl.args()[1]);
 	auto & body = *decl.args()[2];
+
+	convert_expr(type, ctx);
 
 	auto definition = definition::node::create(ctx.region(), name);
 

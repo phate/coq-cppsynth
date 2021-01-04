@@ -216,6 +216,52 @@ private:
 	size_t nalternatives_;
 };
 
+
+/** \brief Set type
+*
+* FIXME: write something
+*/
+class settype final : public jive::valuetype {
+public:
+	~settype() override;
+
+	settype(size_t nsubtypes)
+	: subtypes_(nsubtypes, nullptr)
+	{}
+
+	size_t
+	nsubtypes() const noexcept
+	{
+		return subtypes_.size();
+	}
+
+	const jive::type &
+	subtype(size_t n) const noexcept
+	{
+		JSYN_ASSERT(n < nsubtypes());
+		return *subtypes_[n];
+	}
+
+	void
+	set_subtype(size_t n, const jive::valuetype & subtype)
+	{
+		subtypes_[n] = &subtype;
+	}
+
+	virtual std::string
+	debug_string() const noexcept;
+
+	virtual bool
+	operator==(const jive::type&) const noexcept override;
+
+	virtual std::unique_ptr<jive::type>
+	copy() const override;
+
+private:
+	std::vector<const jive::valuetype*> subtypes_;
+};
+
+
 /** FIXME: to be removed
 */
 class dummytype final : public jive::valuetype {

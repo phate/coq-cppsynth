@@ -139,6 +139,41 @@ ctltype::copy() const
 	return std::unique_ptr<jive::type>(new ctltype(*this));
 }
 
+/* set type */
+
+settype::~settype()
+{}
+
+std::string
+settype::debug_string() const noexcept
+{
+	bool is_first = true;
+	std::string s(jive::detail::strfmt("set[", this, "]("));
+	for (auto & subtype : subtypes_) {
+		if (!is_first)
+			s += ",";
+
+		is_first = false;
+		s += subtype->debug_string();
+	}
+
+	return s;
+}
+
+bool
+settype::operator==(const jive::type & other) const noexcept
+{
+	auto st = dynamic_cast<const settype*>(&other);
+	return st
+	    && st->subtypes_ == subtypes_;
+}
+
+std::unique_ptr<jive::type>
+settype::copy() const
+{
+	return std::unique_ptr<jive::type>(new settype(nsubtypes()));
+}
+
 //FIXME: to be removed
 
 dummytype::~dummytype()
