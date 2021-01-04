@@ -1,7 +1,7 @@
 #ifndef JSYN_IR_RVSDG_HPP
 #define JSYN_IR_RVSDG_HPP
 
-#include <jive/rvsdg/graph.h>
+#include <jive/rvsdg/graph.hpp>
 
 namespace jsyn {
 

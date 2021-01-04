@@ -1,6 +1,6 @@
 #include <jsyn/ir/phi.hpp>
 
-#include <jive/rvsdg/substitution.h>
+#include <jive/rvsdg/substitution.hpp>
 
 namespace jsyn {
 namespace phi {

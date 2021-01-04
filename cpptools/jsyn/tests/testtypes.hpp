@@ -1,7 +1,7 @@
 #ifndef JSYN_TEST_TESTTYPES_HPP
 #define JSYN_TEST_TESTTYPES_HPP
 
-#include <jive/rvsdg/type.h>
+#include <jive/rvsdg/type.hpp>
 
 namespace jsyn {
 namespace test {

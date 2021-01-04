@@ -1,7 +1,7 @@
 #ifndef JSYN_TEST_TESTNODES_HPP
 #define JSYN_TEST_TESTNODES_HPP
 
-#include <jive/rvsdg/simple-node.h>
+#include <jive/rvsdg/simple-node.hpp>
 
 namespace jsyn {
 namespace test {

@@ -4,7 +4,7 @@
 #include <jsyn/util/assert.hpp>
 #include <jsyn/util/exception.hpp>
 
-#include <jive/rvsdg/type.h>
+#include <jive/rvsdg/type.hpp>
 
 #include <vector>
 

@@ -4,8 +4,8 @@
 #include <jsyn/ir/lambda.hpp>
 #include <jsyn/ir/types.hpp>
 
-#include <jive/rvsdg/graph.h>
-#include <jive/view.h>
+#include <jive/rvsdg/graph.hpp>
+#include <jive/view.hpp>
 
 #include <assert.h>
 

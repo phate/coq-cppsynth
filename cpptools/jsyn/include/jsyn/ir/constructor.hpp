@@ -1,8 +1,8 @@
 #ifndef JSYN_IR_CONSTRUCTOR_HPP
 #define JSYN_IR_CONSTRUCTOR_HPP
 
-#include <jive/rvsdg/structural-node.h>
-#include <jive/rvsdg/substitution.h>
+#include <jive/rvsdg/structural-node.hpp>
+#include <jive/rvsdg/substitution.hpp>
 
 #include <jsyn/ir/types.hpp>
 

@@ -3,8 +3,8 @@
 
 #include <jsyn/ir/types.hpp>
 
-#include <jive/rvsdg/simple-node.h>
-#include <jive/rvsdg/substitution.h>
+#include <jive/rvsdg/simple-node.hpp>
+#include <jive/rvsdg/substitution.hpp>
 
 namespace jsyn {
 namespace match {

@@ -1,8 +1,8 @@
 #ifndef JSYN_IR_DEFINITION_HPP
 #define JSYN_IR_DEFINITION_HPP
 
-#include <jive/rvsdg/structural-node.h>
-#include <jive/rvsdg/substitution.h>
+#include <jive/rvsdg/structural-node.hpp>
+#include <jive/rvsdg/substitution.hpp>
 
 namespace jsyn {
 namespace definition {

@@ -3,8 +3,8 @@
 
 #include <jsyn/ir/types.hpp>
 
-#include <jive/rvsdg/structural-node.h>
-#include <jive/rvsdg/substitution.h>
+#include <jive/rvsdg/structural-node.hpp>
+#include <jive/rvsdg/substitution.hpp>
 
 namespace jsyn {
 namespace lambda {

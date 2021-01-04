@@ -2,7 +2,7 @@
 #include <jsyn/sexpr-rvsdg.hpp>
 #include <jsyn/util/assert.hpp>
 
-#include <jive/view.h>
+#include <jive/view.hpp>
 
 int main(int argc, char ** argv)
 {

@@ -3,7 +3,7 @@
 
 #include <jsyn/util/assert.hpp>
 
-#include <jive/rvsdg/structural-node.h>
+#include <jive/rvsdg/structural-node.hpp>
 
 namespace jsyn {
 namespace phi {

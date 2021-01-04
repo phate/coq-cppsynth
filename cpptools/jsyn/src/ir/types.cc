@@ -1,6 +1,6 @@
 #include <jsyn/ir/types.hpp>
 
-#include <jive/util/strfmt.h>
+#include <jive/util/strfmt.hpp>
 
 namespace jsyn {
 
